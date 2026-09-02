@@ -54,3 +54,7 @@ need to handle (see `mock_bank/data.py`):
 ```bash
 pytest
 ```
+
+## License
+
+[GNU AGPL v3](LICENSE).

@@ -4,6 +4,8 @@ version = "0.1.0"
 description = "Computer-use automation: LLM discovery -> reusable artifact -> deterministic replay for legacy banking back-office UIs"
 requires-python = ">=3.11"
 readme = "README.md"
+license = "AGPL-3.0-or-later"
+license-files = ["LICENSE"]
 dependencies = [
     "playwright>=1.47",
     "pydantic>=2.9",
