@@ -162,6 +162,25 @@ replay can attempt.
   a condition it can't recover from") points at replay as the primary case. The mechanism
   (`ControlPlaneStore`, the DevTools URL, pause/resume) is identical either way and is real; only
   the "re-enter the LLM loop with prior context" half is missing for discovery.
+- **`resume_from_step` doesn't adapt to how far the human actually got.** It's hardcoded to
+  "exactly one step past the one that failed," assuming minimal intervention — the human fixes
+  only the blocking step and hands back immediately. Found by hand: manually testing the handoff,
+  typing the missing input *and* clicking the next button myself (a natural thing to do while
+  already in there) left the session one step ahead of what resume expected, and the next
+  automated action — clicking a button that page no longer had — failed. The mechanism itself
+  (pause, live takeover, resume on the same session) worked correctly in every trial; only the
+  assumption about exactly where the human stopped is wrong. Fix: let `flux operator resume`
+  accept an explicit `--resume-from-step`, or have replay re-observe the current page and match
+  it against each step's checkpoint instead of trusting an index at all.
+- **An artifact recorded purely through the CLI has no `known_outcomes`.** `flux discover`
+  doesn't expose a flag for them — `recorder.record()` supports the parameter, nothing in the CLI
+  calls it with one. So a legitimate business outcome (a search that genuinely finds nothing) on
+  such an artifact gets reported as a hard failure instead of a clean `business_outcome`, purely
+  because nobody declared what "no results" looks like for that particular capability. Confirmed
+  live: replaying a CLI-recorded artifact with a made-up search term correctly detected there
+  was nothing to click — and had no way to know that was expected rather than broken. The
+  artifacts in `evidence/` that *do* have `known_outcomes` were recorded through the recorder API
+  directly, not the CLI, for exactly this reason.
 - **One recoverable tactic**, not several. Transient-timeout retry is real and tested;
   interstitial-dismissal would be the same branch with a different trigger, not built.
 - **Multi-tenant override storage isn't built** — the drift *signal* is real (§ Heterogeneity),
