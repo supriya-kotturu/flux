@@ -8,7 +8,8 @@ pull a human in when it can't safely proceed.
 Built for the interface.ai take-home. See [`REPORT.md`](REPORT.md) for the design write-up
 (architecture, artifact schema, determinism/error handling, heterogeneity & multi-tenant,
 escalation & handoff, safety, cuts), [`docs/ROADMAP.md`](docs/ROADMAP.md) for the phase-by-phase
-build plan this was developed against, and [`/evidence/`](evidence/) for curated run logs.
+build plan this was developed against, [`/evidence/`](evidence/) for curated run logs, and
+[`docs/TESTING.md`](docs/TESTING.md) for copy-pasteable commands to retest every scenario by hand.
 
 ## Setup
 
