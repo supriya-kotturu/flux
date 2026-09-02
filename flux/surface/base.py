@@ -118,4 +118,10 @@ class Surface(Protocol):
 
     def act(self, action: Action) -> ActionResult: ...
 
+    def screenshot(self) -> bytes:
+        """A richer failure signal alongside the structured log — brief §3.5.
+        PNG bytes for a browser surface; a desktop surface would return
+        whatever its own screen-capture gives, same contract."""
+        ...
+
     def close(self) -> None: ...

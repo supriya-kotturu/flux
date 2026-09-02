@@ -22,6 +22,7 @@ from pydantic import BaseModel
 from flux.agent.llm_client import LLMClient, ToolCall
 from flux.agent.prompts import render_observation, render_tool_result, system_prompt
 from flux.agent.tools import TOOL_SCHEMAS, is_terminal, tool_call_to_action
+from flux.observability.evidence import capture_failure_evidence
 from flux.observability.logger import RunLogger
 from flux.surface.base import Action, ActionResult, Observation, Surface
 
@@ -68,6 +69,7 @@ def run_discovery(
     nav_result = surface.act(Action(kind="navigate", value=target))
     if not nav_result.ok:
         logger.event("discovery_stopped", controller="agent", stop_reason="dead_end", detail=nav_result.error)
+        capture_failure_evidence(surface, logger, tag="stop-dead_end")
         return DiscoveryRun(
             goal=goal, target=target, run_id=logger.run_id, stop_reason="dead_end",
             success=False, steps=[], give_up_reason=f"could not load target: {nav_result.error}",
@@ -86,7 +88,7 @@ def run_discovery(
     for i in range(max_steps):
         if time.monotonic() - start > timeout_s:
             logger.event("discovery_stopped", controller="agent", stop_reason="timeout", step_index=i)
-            return _finish(goal, target, logger, "timeout", False, steps)
+            return _finish(goal, target, logger, "timeout", False, steps, surface)
 
         response = llm.next_step(messages=messages, tools=TOOL_SCHEMAS, system=system)
 
@@ -101,7 +103,7 @@ def run_discovery(
         logger.event("model_decided", controller="agent", step_index=i, tool=call.name, input=call.input)
 
         if is_terminal(call):
-            return _handle_terminal(goal, target, logger, call, steps, observation)
+            return _handle_terminal(goal, target, logger, call, steps, observation, surface)
 
         try:
             action = tool_call_to_action(call)
@@ -110,7 +112,7 @@ def run_discovery(
             messages.append(_tool_result_message(call, f"malformed call: {exc}"))
             consecutive_failures += 1
             if consecutive_failures >= DEAD_END_THRESHOLD:
-                return _finish(goal, target, logger, "dead_end", False, steps)
+                return _finish(goal, target, logger, "dead_end", False, steps, surface)
             continue
 
         result = surface.act(action)
@@ -128,10 +130,10 @@ def run_discovery(
         consecutive_failures = 0 if result.ok else consecutive_failures + 1
         if consecutive_failures >= DEAD_END_THRESHOLD:
             logger.event("discovery_stopped", controller="agent", stop_reason="dead_end", step_index=i)
-            return _finish(goal, target, logger, "dead_end", False, steps)
+            return _finish(goal, target, logger, "dead_end", False, steps, surface)
 
     logger.event("discovery_stopped", controller="agent", stop_reason="max_steps")
-    return _finish(goal, target, logger, "max_steps", False, steps)
+    return _finish(goal, target, logger, "max_steps", False, steps, surface)
 
 
 def _tool_result_message(call: ToolCall, content: str) -> dict[str, Any]:
@@ -140,7 +142,7 @@ def _tool_result_message(call: ToolCall, content: str) -> dict[str, Any]:
 
 def _handle_terminal(
     goal: str, target: str, logger: RunLogger, call: ToolCall,
-    steps: list[DiscoveryStep], observation: Observation,
+    steps: list[DiscoveryStep], observation: Observation, surface: Surface,
 ) -> DiscoveryRun:
     if call.name == "goal_complete":
         outputs = call.input.get("outputs", {})
@@ -157,6 +159,7 @@ def _handle_terminal(
 
     reason = call.input.get("reason", "")
     logger.event("give_up", controller="agent", reason=reason)
+    capture_failure_evidence(surface, logger, tag="stop-give_up")
     steps.append(DiscoveryStep(
         index=len(steps), observation=observation, tool_name=call.name,
         tool_input=call.input, action=None, result=None,
@@ -169,8 +172,9 @@ def _handle_terminal(
 
 def _finish(
     goal: str, target: str, logger: RunLogger, stop_reason: StopReason,
-    success: bool, steps: list[DiscoveryStep],
+    success: bool, steps: list[DiscoveryStep], surface: Surface,
 ) -> DiscoveryRun:
+    capture_failure_evidence(surface, logger, tag=f"stop-{stop_reason}")
     return DiscoveryRun(
         goal=goal, target=target, run_id=logger.run_id, stop_reason=stop_reason,
         success=success, steps=steps,
