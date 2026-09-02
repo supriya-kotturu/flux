@@ -50,7 +50,6 @@ def discover(
     from flux.agent.loop import run_discovery
     from flux.artifact import store
     from flux.artifact.recorder import record
-    from flux.artifact.schema import AppTarget
     from flux.observability.logger import RunLogger, new_run_id
     from flux.surface.browser import BrowserSurface
 
@@ -79,7 +78,7 @@ def discover(
     origin = urlsplit(target)
     artifact = record(
         run, name=name, description=goal,
-        app_target=AppTarget(base_url=f"{origin.scheme}://{origin.netloc}", vendor_product=vendor_product),
+        base_url=f"{origin.scheme}://{origin.netloc}", vendor_product=vendor_product,
         input_params=input_params,
     )
     path = store.save(artifact)
@@ -88,14 +87,45 @@ def discover(
 
 @main.command()
 @click.option("--artifact", "artifact_name", required=True, help="Name of a saved artifact under artifacts/")
-@click.option("--param", "params", multiple=True, help="key=value input parameter, repeatable")
-def replay(artifact_name: str, params: tuple[str, ...]) -> None:
+@click.option("--param", "params", multiple=True, help="name=value input parameter, repeatable")
+@click.option(
+    "--approve", is_flag=True, default=False,
+    help="Required if the artifact has any irreversible (dialog-confirmed) step — see requires_approval.",
+)
+@click.option("--headless/--headed", default=False)
+def replay(artifact_name: str, params: tuple[str, ...], approve: bool, headless: bool) -> None:
     """Deterministically replay a saved artifact — no LLM in the loop."""
-    parsed = dict(p.split("=", 1) for p in params)
-    raise click.ClickException(
-        "replay engine not implemented yet (Phase 5) — scaffolding only. "
-        f"Would replay artifacts/{artifact_name}.json with params={parsed}"
-    )
+    from pathlib import Path
+
+    from flux.artifact import store
+    from flux.observability.logger import RunLogger, new_run_id
+    from flux.replay.executor import replay as run_replay
+    from flux.surface.browser import BrowserSurface
+
+    replay_params = dict(p.split("=", 1) for p in params)
+    artifact = store.load(artifact_name)
+    logger = RunLogger(new_run_id("replay"), evidence_root=Path("evidence"))
+    surface = BrowserSurface.launch(headless=headless)
+    try:
+        result = run_replay(artifact, replay_params, surface, logger, approved=approve)
+    finally:
+        surface.close()
+
+    click.echo(f"result={result.kind}")
+    if result.kind == "success":
+        click.echo(f"outputs={result.outputs}")
+    elif result.kind == "business_outcome":
+        click.echo(f"outcome={result.name}: {result.description}")
+    else:
+        click.echo(f"category={result.category} step_index={result.step_index}")
+        click.echo(f"expected: {result.expected}")
+        click.echo(f"observed: {result.observed}")
+        if result.detail:
+            click.echo(f"detail: {result.detail}")
+    click.echo(f"evidence: {logger.run_dir}")
+
+    if result.kind == "failure":
+        raise SystemExit(1)
 
 
 if __name__ == "__main__":

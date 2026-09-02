@@ -109,6 +109,16 @@ class BrowserSurface(Surface):
         if action.locator is None:
             return ActionResult(ok=False, error=f"{action.kind} requires a locator")
 
+        if action.kind == "exists":
+            # A pure presence probe — no auto-wait, no side effect. This is
+            # how replay checks a business outcome or the final checkpoint:
+            # `resolve()`'s `.count()` calls return immediately with whatever
+            # the DOM currently has, so this never blocks a replay run.
+            picked = resolve(self._page, action.locator)
+            if picked is None:
+                return ActionResult(ok=False, error="no candidate resolved")
+            return ActionResult(ok=True, resolved_via=picked[0])
+
         picked = resolve(self._page, action.locator)
         if picked is None:
             return ActionResult(ok=False, error="no locator candidate resolved to exactly one element")

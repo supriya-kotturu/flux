@@ -13,7 +13,6 @@ from pathlib import Path
 
 from flux.agent.loop import run_discovery
 from flux.artifact.recorder import record
-from flux.artifact.schema import AppTarget
 from flux.artifact import store
 from flux.observability.logger import RunLogger, new_run_id
 from flux.surface.browser import BrowserSurface
@@ -59,7 +58,7 @@ def test_record_templates_the_concrete_input_value(page, mock_bank_server, tmp_p
         run,
         name="lookup_member_savings_balance",
         description="Look up a member by ID and read their savings balance.",
-        app_target=AppTarget(base_url=mock_bank_server, vendor_product="meridian-core-banking"),
+        base_url=mock_bank_server, vendor_product="meridian-core-banking",
         input_params={"member_id": "10001"},
     )
 
@@ -119,7 +118,7 @@ def test_record_marks_dialog_confirmed_step_as_irreversible(page, mock_bank_serv
         run,
         name="open_sub_account",
         description="Open a new sub-account for a member.",
-        app_target=AppTarget(base_url=mock_bank_server, vendor_product="meridian-core-banking"),
+        base_url=mock_bank_server, vendor_product="meridian-core-banking",
         input_params={"member_id": "10002"},
     )
 

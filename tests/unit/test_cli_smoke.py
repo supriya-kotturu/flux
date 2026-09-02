@@ -20,7 +20,10 @@ def test_discover_help_shows_its_options() -> None:
     assert "--target" in result.output
 
 
-def test_replay_is_registered_but_not_yet_implemented() -> None:
-    result = CliRunner().invoke(main, ["replay", "--artifact", "n"])
-    assert result.exit_code != 0
-    assert "not implemented yet" in result.output
+def test_replay_help_shows_its_options() -> None:
+    # replay now runs a real browser + the deterministic executor (Phase 5) -
+    # covered against the live mock bank in tests/integration/test_replay_executor.py.
+    result = CliRunner().invoke(main, ["replay", "--help"])
+    assert result.exit_code == 0
+    assert "--artifact" in result.output
+    assert "--approve" in result.output

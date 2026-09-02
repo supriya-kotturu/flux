@@ -1,14 +1,14 @@
 """Tool schemas the discovery agent chooses from, and their translation to `Action`.
 
 Deliberately narrower than `flux.surface.base.Action`: the model picks one
-locator strategy per step (role+name, label, or visible text — never
-coordinates, never a multi-candidate fallback list). Discovery only needs
-*a* reliable way to act each step; turning that single choice into a
-ranked, self-healing candidate list is the artifact recorder's job
-(Phase 4), which can re-derive redundant strategies for the same resolved
-element after the fact. Keeping the model's decision surface small also
-keeps it from reaching for brittle coordinates when a semantic locator
-would do.
+locator strategy per step (role+name, label, a table row's value, or
+visible text — never coordinates, never a multi-candidate fallback list).
+Discovery only needs *a* reliable way to act each step; turning that
+single choice into a ranked, self-healing candidate list is the artifact
+recorder's job (Phase 4), which can re-derive redundant strategies for the
+same resolved element after the fact. Keeping the model's decision surface
+small also keeps it from reaching for brittle coordinates when a semantic
+locator would do.
 """
 
 from __future__ import annotations
@@ -17,19 +17,22 @@ from typing import Any
 
 from flux.agent.llm_client import ToolCall
 from flux.surface.base import Action, DialogResponse
-from flux.surface.locator import label, make, role_name, text as text_candidate
+from flux.surface.locator import label, make, role_name, table_row_value, text as text_candidate
 
 _LOCATOR_SCHEMA: dict[str, Any] = {
     "type": "object",
     "properties": {
         "by": {
             "type": "string",
-            "enum": ["role", "label", "text"],
+            "enum": ["role", "label", "table_row_value", "text"],
             "description": (
                 "How to find the target. Prefer 'role' (e.g. role=button, value='Search') "
                 "when the control has a clear semantic role and accessible name. Use 'label' "
-                "for form fields identified by their <label> text. Use 'text' only when "
-                "neither gives a unique match."
+                "for form fields identified by their <label> text. Use 'table_row_value' when "
+                "reading a value out of a two-column label/value table row (common on these "
+                "screens, e.g. a 'Savings Balance' row) — value is the row's LABEL text, not "
+                "the value itself (you often don't know the value yet). Use 'text' only when "
+                "none of the above gives a unique match."
             ),
         },
         "role": {"type": "string", "description": "ARIA role, required when by='role' (button, link, textbox, ...)"},
@@ -167,6 +170,8 @@ def _build_locator(spec: dict[str, Any]):
         return make(role_name(role, value, exact=exact))
     if by == "label":
         return make(label(value, exact=exact))
+    if by == "table_row_value":
+        return make(table_row_value(value))
     if by == "text":
         return make(text_candidate(value, exact=exact))
     raise ValueError(f"unknown locator strategy: {by}")

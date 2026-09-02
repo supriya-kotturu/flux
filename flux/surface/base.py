@@ -22,7 +22,7 @@ from typing import Any, Literal, Protocol
 
 from pydantic import BaseModel, Field
 
-LocatorStrategy = Literal["role_name", "label", "text", "structural_path", "coordinates"]
+LocatorStrategy = Literal["role_name", "label", "text", "table_row_value", "structural_path", "coordinates"]
 
 
 class LocatorCandidate(BaseModel):
@@ -30,7 +30,7 @@ class LocatorCandidate(BaseModel):
 
     strategy: LocatorStrategy
     role: str | None = None  # role_name: ARIA role, e.g. "button", "textbox"
-    name: str | None = None  # role_name / label: accessible name / label text
+    name: str | None = None  # role_name / label / table_row_value: accessible name / label text / row label
     text: str | None = None  # text: visible text content to match
     css: str | None = None  # structural_path: CSS selector — last-resort structural anchor
     x: float | None = None  # coordinates
@@ -43,6 +43,8 @@ class LocatorCandidate(BaseModel):
             return f"role={self.role!r} name={self.name!r}"
         if self.strategy == "label":
             return f"label={self.name!r}"
+        if self.strategy == "table_row_value":
+            return f"table_row_value(label={self.name!r})"
         if self.strategy == "text":
             return f"text={self.text!r}"
         if self.strategy == "structural_path":
@@ -80,7 +82,7 @@ class Observation(BaseModel):
     screenshot_ref: str | None = None
 
 
-ActionKind = Literal["click", "type", "select", "navigate", "wait_for", "extract"]
+ActionKind = Literal["click", "type", "select", "navigate", "wait_for", "extract", "exists"]
 
 # Safety default: an action never auto-accepts a native dialog unless the
 # caller explicitly opts in for that one action. A step that turns out to

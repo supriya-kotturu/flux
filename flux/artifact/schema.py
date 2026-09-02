@@ -26,7 +26,7 @@ from typing import Literal
 
 from pydantic import BaseModel, Field
 
-from flux.surface.base import ActionKind, LocatorCandidate, Locator
+from flux.surface.base import ActionKind, DialogResponse, LocatorCandidate, Locator
 
 ARTIFACT_SCHEMA_VERSION = 1
 
@@ -51,6 +51,7 @@ class AppTarget(BaseModel):
     """
 
     base_url: str
+    entry_url: str  # where replay first navigates — the discovery run's target, templated like any step
     vendor_product: str | None = None
     tenant_id: str | None = None
 
@@ -63,6 +64,7 @@ class Step(BaseModel):
     output_name: str | None = None  # set when kind == "extract"
     description: str  # the discovery model's own stated reasoning, or an auto-generated fallback
     risk_level: Literal["safe", "irreversible"] = "safe"
+    on_dialog: DialogResponse | None = None  # replayed verbatim — the approval gate covers the decision, not each step
 
 
 class NamedOutcome(BaseModel):

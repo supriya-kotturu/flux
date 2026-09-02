@@ -17,7 +17,7 @@ progress and will be replaced with the full setup/demo instructions once the cor
 - [x] Phase 2 — `Surface` abstraction + Playwright driver
 - [x] Phase 3 — LLM discovery loop
 - [x] Phase 4 — artifact schema + recorder
-- [ ] Phase 5 — deterministic replay engine
+- [x] Phase 5 — deterministic replay engine
 - [ ] Phase 6 — safety guardrails
 - [ ] Phase 7 — observability/evidence
 - [ ] Phase 8 — escalation & handoff
@@ -63,12 +63,25 @@ On success this saves a typed, versioned capability artifact to
 `artifacts/lookup_member_savings_balance.json` — `--param name=value` tells the
 recorder which concrete values used during this run should become `{{name}}`
 placeholders in the saved artifact (so the same capability can be replayed
-against a different member later). Replay lands in Phase 5.
+against a different member later).
 
-The loop itself (stopping conditions, action translation, dialog handling) and
-the recorder (templating, output typing, the irreversible-step approval gate)
-are both covered against a scripted fake LLM in `tests/integration/`, so the
-test suite never needs a real API key.
+## Replaying a saved artifact (no LLM, no API key needed)
+
+```bash
+flux replay --artifact lookup_member_savings_balance --param member_id=10002
+```
+
+Prints a structured result: `success` with typed outputs, a declared
+`business_outcome` (e.g. `--param member_id=77777` — no such member, a
+legitimate answer, not a crash), or a `failure` with the step index, what was
+expected, and what was observed. An artifact with any irreversible step
+(dialog-confirmed, e.g. opening a sub-account) refuses to run unattended
+unless you pass `--approve`.
+
+The loop, the recorder, and the replay executor (parameterized determinism,
+the business-outcome/failure split, the approval gate) are all covered
+against a scripted fake LLM and the live mock bank in `tests/integration/`,
+so the test suite never needs a real API key.
 
 ## Tests
 
