@@ -1,0 +1,166 @@
+"""Playwright-backed implementation of `Surface`.
+
+Two ways to get one:
+- `BrowserSurface.launch(...)` starts its own Playwright/browser/context —
+  what the CLI and the discovery agent use for a real run. Launched headed
+  with a CDP debug port open by default, because Phase 8's human handoff
+  needs to attach a real operator to this exact session later.
+- `BrowserSurface(page)` wraps an existing Playwright `Page` — what tests
+  use, so they can inject pytest-playwright's fixtures instead of spinning
+  up a second browser per test.
+"""
+
+from __future__ import annotations
+
+from typing import Any
+
+from playwright.sync_api import Dialog, Page
+from playwright.sync_api import Error as PlaywrightError
+from playwright.sync_api import TimeoutError as PwTimeoutError
+from playwright.sync_api import sync_playwright
+
+from flux.surface.accessibility import capture_ax_tree
+from flux.surface.base import (
+    Action,
+    ActionResult,
+    DialogInfo,
+    DialogResponse,
+    Observation,
+    Surface,
+)
+from flux.surface.locator import resolve
+
+DEFAULT_CDP_PORT = 9222
+
+
+class BrowserSurface(Surface):
+    def __init__(self, page: Page) -> None:
+        self._page = page
+        self._armed_dialog_response: DialogResponse = "dismiss"
+        self._last_dialog: DialogInfo | None = None
+        self._owns: tuple[Any, Any, Any] | None = None
+        page.on("dialog", self._on_dialog)
+
+    @classmethod
+    def launch(cls, headless: bool = False, cdp_port: int | None = DEFAULT_CDP_PORT) -> "BrowserSurface":
+        playwright = sync_playwright().start()
+        launch_kwargs: dict[str, Any] = {"headless": headless}
+        if cdp_port is not None:
+            launch_kwargs["args"] = [f"--remote-debugging-port={cdp_port}"]
+        browser = playwright.chromium.launch(**launch_kwargs)
+        context = browser.new_context()
+        page = context.new_page()
+        surface = cls(page)
+        surface._owns = (playwright, browser, context)
+        return surface
+
+    @property
+    def page(self) -> Page:
+        return self._page
+
+    def close(self) -> None:
+        if self._owns is not None:
+            playwright, browser, context = self._owns
+            context.close()
+            browser.close()
+            playwright.stop()
+            self._owns = None
+
+    # --- Surface protocol ---
+
+    def observe(self) -> Observation:
+        return Observation(
+            url=self._page.url,
+            title=self._page.title(),
+            ax_tree=capture_ax_tree(self._page),
+            pending_dialog=self._last_dialog,
+        )
+
+    def act(self, action: Action) -> ActionResult:
+        self._last_dialog = None
+        self._armed_dialog_response = action.on_dialog or "dismiss"
+        try:
+            result = self._dispatch(action)
+        except PwTimeoutError as exc:
+            result = ActionResult(ok=False, error=f"timeout waiting for target: {exc}")
+        except PlaywrightError as exc:
+            result = ActionResult(ok=False, error=str(exc))
+        finally:
+            self._armed_dialog_response = "dismiss"
+        result.dialog_seen = self._last_dialog
+        return result
+
+    # --- internals ---
+
+    def _on_dialog(self, dialog: Dialog) -> None:
+        self._last_dialog = DialogInfo(kind=dialog.type, message=dialog.message)
+        if self._armed_dialog_response == "accept":
+            dialog.accept()
+        else:
+            dialog.dismiss()
+
+    def _dispatch(self, action: Action) -> ActionResult:
+        if action.kind == "navigate":
+            if not action.value:
+                return ActionResult(ok=False, error="navigate requires a URL in `value`")
+            self._page.goto(action.value, timeout=action.timeout_ms)
+            return ActionResult(ok=True)
+
+        if action.locator is None:
+            return ActionResult(ok=False, error=f"{action.kind} requires a locator")
+
+        picked = resolve(self._page, action.locator)
+        if picked is None:
+            return ActionResult(ok=False, error="no locator candidate resolved to exactly one element")
+        candidate, pw_locator = picked
+
+        if action.kind == "click":
+            if pw_locator is not None:
+                pw_locator.click(timeout=action.timeout_ms)
+            else:
+                self._page.mouse.click(candidate.x, candidate.y)  # type: ignore[arg-type]
+            self._settle()
+            return ActionResult(ok=True, resolved_via=candidate)
+
+        if action.kind == "type":
+            if pw_locator is None:
+                return ActionResult(ok=False, error="type is not supported via coordinates")
+            pw_locator.fill(action.value or "", timeout=action.timeout_ms)
+            return ActionResult(ok=True, resolved_via=candidate)
+
+        if action.kind == "select":
+            if pw_locator is None:
+                return ActionResult(ok=False, error="select is not supported via coordinates")
+            pw_locator.select_option(action.value, timeout=action.timeout_ms)
+            return ActionResult(ok=True, resolved_via=candidate)
+
+        if action.kind == "wait_for":
+            if pw_locator is None:
+                return ActionResult(ok=False, error="wait_for is not supported via coordinates")
+            pw_locator.wait_for(state="visible", timeout=action.timeout_ms)
+            return ActionResult(ok=True, resolved_via=candidate)
+
+        if action.kind == "extract":
+            if pw_locator is None:
+                return ActionResult(ok=False, error="extract is not supported via coordinates")
+            text_value = _read_value(pw_locator)
+            return ActionResult(ok=True, resolved_via=candidate, data={"text": text_value})
+
+        return ActionResult(ok=False, error=f"unknown action kind: {action.kind}")
+
+    def _settle(self) -> None:
+        """Best-effort: let a click-triggered navigation land before the caller observes."""
+        try:
+            self._page.wait_for_load_state("domcontentloaded", timeout=2000)
+        except PwTimeoutError:
+            pass
+
+
+def _read_value(pw_locator: Any) -> str:
+    try:
+        value = pw_locator.input_value(timeout=500)
+        if value:
+            return value
+    except PlaywrightError:
+        pass
+    return pw_locator.inner_text(timeout=2000)
