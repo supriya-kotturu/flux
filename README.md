@@ -70,9 +70,11 @@ member it was recorded against — proving the parameterization is real), a decl
 `business_outcome` (try `--param member_id=77777` — no such member, a legitimate answer, not a
 crash), or a `failure` with the step index, what was expected, and what was observed.
 
-Don't have a live API key handy? `evidence/` already has a curated discovery run, a successful
-replay, a business-outcome replay, and a hard-failure replay (with screenshot + accessibility-tree
-evidence) generated the same way the test suite does — see [`evidence/README.md`](evidence/README.md).
+Don't have a live API key handy? [`evidence/`](evidence/) has a real live discovery + replay pair
+against the actual Anthropic API, plus four further curated runs (a discovery run, a successful
+replay, a business-outcome replay, and a hard-failure replay with screenshot + accessibility-tree
+evidence) generated the same deterministic way the test suite is — see
+[`evidence/README.md`](evidence/README.md).
 
 ## Escalation & handoff
 

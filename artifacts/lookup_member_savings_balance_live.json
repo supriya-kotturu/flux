@@ -1,0 +1,342 @@
+{
+  "schema_version": 1,
+  "id": "lookup_member_savings_balance_live",
+  "version": 1,
+  "name": "lookup_member_savings_balance_live",
+  "description": "Log in with username 'operator' and password 'letmein'. Then look up member 10001 and read their savings balance.",
+  "app_target": {
+    "base_url": "http://127.0.0.1:5055",
+    "entry_url": "http://127.0.0.1:5055/login",
+    "vendor_product": null,
+    "tenant_id": null
+  },
+  "input_schema": {
+    "member_id": {
+      "type": "string",
+      "description": "",
+      "required": true
+    }
+  },
+  "output_schema": {
+    "savings_balance": {
+      "type": "string",
+      "description": "extracted at step 6",
+      "required": true
+    }
+  },
+  "steps": [
+    {
+      "index": 0,
+      "kind": "type",
+      "locator": {
+        "candidates": [
+          {
+            "strategy": "label",
+            "role": null,
+            "name": "Username",
+            "text": null,
+            "css": null,
+            "x": null,
+            "y": null,
+            "exact": false,
+            "confidence": 0.85
+          },
+          {
+            "strategy": "structural_path",
+            "role": null,
+            "name": null,
+            "text": null,
+            "css": "#username",
+            "x": null,
+            "y": null,
+            "exact": false,
+            "confidence": 0.25
+          }
+        ]
+      },
+      "value_template": "operator",
+      "output_name": null,
+      "description": "This is the username field in the login form, identified by its label 'Username'. I need to enter 'operator' as specified in the goal.",
+      "risk_level": "safe",
+      "on_dialog": null
+    },
+    {
+      "index": 1,
+      "kind": "type",
+      "locator": {
+        "candidates": [
+          {
+            "strategy": "label",
+            "role": null,
+            "name": "Password",
+            "text": null,
+            "css": null,
+            "x": null,
+            "y": null,
+            "exact": false,
+            "confidence": 0.85
+          },
+          {
+            "strategy": "structural_path",
+            "role": null,
+            "name": null,
+            "text": null,
+            "css": "#password",
+            "x": null,
+            "y": null,
+            "exact": false,
+            "confidence": 0.25
+          }
+        ]
+      },
+      "value_template": "{{secret:password}}",
+      "output_name": null,
+      "description": "This is the password field in the login form, identified by its label 'Password'. I need to enter 'letmein' as specified in the goal.",
+      "risk_level": "safe",
+      "on_dialog": null
+    },
+    {
+      "index": 2,
+      "kind": "click",
+      "locator": {
+        "candidates": [
+          {
+            "strategy": "role_name",
+            "role": "button",
+            "name": "Sign In",
+            "text": null,
+            "css": null,
+            "x": null,
+            "y": null,
+            "exact": false,
+            "confidence": 0.9
+          },
+          {
+            "strategy": "text",
+            "role": null,
+            "name": null,
+            "text": "Sign In",
+            "css": null,
+            "x": null,
+            "y": null,
+            "exact": false,
+            "confidence": 0.5
+          },
+          {
+            "strategy": "structural_path",
+            "role": null,
+            "name": null,
+            "text": null,
+            "css": "td:nth-of-type(1) > form:nth-of-type(1) > p:nth-of-type(1) > button:nth-of-type(1)",
+            "x": null,
+            "y": null,
+            "exact": false,
+            "confidence": 0.25
+          }
+        ]
+      },
+      "value_template": null,
+      "output_name": null,
+      "description": "This is the Sign In button that will submit the login form with the entered credentials. It's identified by its role as a button and accessible name 'Sign In'.",
+      "risk_level": "safe",
+      "on_dialog": null
+    },
+    {
+      "index": 3,
+      "kind": "type",
+      "locator": {
+        "candidates": [
+          {
+            "strategy": "label",
+            "role": null,
+            "name": "Member ID or last name",
+            "text": null,
+            "css": null,
+            "x": null,
+            "y": null,
+            "exact": false,
+            "confidence": 0.85
+          },
+          {
+            "strategy": "structural_path",
+            "role": null,
+            "name": null,
+            "text": null,
+            "css": "#query",
+            "x": null,
+            "y": null,
+            "exact": false,
+            "confidence": 0.25
+          }
+        ]
+      },
+      "value_template": "{{member_id}}",
+      "output_name": null,
+      "description": "This is the search field that accepts either a Member ID or last name. I need to enter the member ID '10001' to look up that member.",
+      "risk_level": "safe",
+      "on_dialog": null
+    },
+    {
+      "index": 4,
+      "kind": "click",
+      "locator": {
+        "candidates": [
+          {
+            "strategy": "role_name",
+            "role": "button",
+            "name": "Search",
+            "text": null,
+            "css": null,
+            "x": null,
+            "y": null,
+            "exact": false,
+            "confidence": 0.9
+          },
+          {
+            "strategy": "text",
+            "role": null,
+            "name": null,
+            "text": "Search",
+            "css": null,
+            "x": null,
+            "y": null,
+            "exact": false,
+            "confidence": 0.5
+          },
+          {
+            "strategy": "structural_path",
+            "role": null,
+            "name": null,
+            "text": null,
+            "css": "tr:nth-of-type(3) > td:nth-of-type(1) > form:nth-of-type(1) > button:nth-of-type(1)",
+            "x": null,
+            "y": null,
+            "exact": false,
+            "confidence": 0.25
+          }
+        ]
+      },
+      "value_template": null,
+      "output_name": null,
+      "description": "This is the Search button that will submit the member search query for member ID 10001. It's identified by its role as a button and accessible name 'Search'.",
+      "risk_level": "safe",
+      "on_dialog": null
+    },
+    {
+      "index": 5,
+      "kind": "click",
+      "locator": {
+        "candidates": [
+          {
+            "strategy": "role_name",
+            "role": "link",
+            "name": "Open Record",
+            "text": null,
+            "css": null,
+            "x": null,
+            "y": null,
+            "exact": false,
+            "confidence": 0.9
+          },
+          {
+            "strategy": "text",
+            "role": null,
+            "name": null,
+            "text": "Open Record",
+            "css": null,
+            "x": null,
+            "y": null,
+            "exact": false,
+            "confidence": 0.5
+          },
+          {
+            "strategy": "structural_path",
+            "role": null,
+            "name": null,
+            "text": null,
+            "css": "tbody:nth-of-type(1) > tr:nth-of-type(2) > td:nth-of-type(5) > a:nth-of-type(1)",
+            "x": null,
+            "y": null,
+            "exact": false,
+            "confidence": 0.25
+          }
+        ]
+      },
+      "value_template": null,
+      "output_name": null,
+      "description": "This is the 'Open Record' link that will navigate to the detailed member record for member 10001, where I should be able to find the savings balance information.",
+      "risk_level": "safe",
+      "on_dialog": null
+    },
+    {
+      "index": 6,
+      "kind": "extract",
+      "locator": {
+        "candidates": [
+          {
+            "strategy": "table_row_value",
+            "role": null,
+            "name": "Savings Balance",
+            "text": null,
+            "css": null,
+            "x": null,
+            "y": null,
+            "exact": false,
+            "confidence": 0.55
+          },
+          {
+            "strategy": "text",
+            "role": null,
+            "name": null,
+            "text": "$4210.55",
+            "css": null,
+            "x": null,
+            "y": null,
+            "exact": false,
+            "confidence": 0.5
+          },
+          {
+            "strategy": "structural_path",
+            "role": null,
+            "name": null,
+            "text": null,
+            "css": "table:nth-of-type(1) > tbody:nth-of-type(1) > tr:nth-of-type(5) > td:nth-of-type(2)",
+            "x": null,
+            "y": null,
+            "exact": false,
+            "confidence": 0.25
+          }
+        ]
+      },
+      "value_template": null,
+      "output_name": "savings_balance",
+      "description": "This extracts the savings balance value from the member record table. The 'Savings Balance' row contains the value I need to capture.",
+      "risk_level": "safe",
+      "on_dialog": null
+    }
+  ],
+  "known_outcomes": [],
+  "checkpoint": {
+    "description": "Successfully logged in as operator, navigated to member record page for member 10001 (Ava Nguyen), and extracted the savings balance. The page displays the heading 'Member Record: Ava Nguyen (10001)' and shows a table with member details including the Savings Balance row with value $4210.55.",
+    "detect": {
+      "strategy": "table_row_value",
+      "role": null,
+      "name": "Savings Balance",
+      "text": null,
+      "css": null,
+      "x": null,
+      "y": null,
+      "exact": false,
+      "confidence": 0.55
+    }
+  },
+  "provenance": {
+    "discovery_run_id": "discover-20260902-034920-758c44",
+    "recorded_at": "2026-09-02T03:49:57.865785Z"
+  },
+  "requires_approval": false,
+  "required_secrets": [
+    "password"
+  ],
+  "created_at": "2026-09-02T03:49:57.865785Z"
+}
