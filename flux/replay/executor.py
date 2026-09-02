@@ -44,7 +44,15 @@ def replay(
     *,
     approved: bool = False,
     secrets: dict[str, str] | None = None,
+    resume_from_step: int | None = None,
 ) -> ReplayResult:
+    """`resume_from_step` is the handoff seam (brief §3.6): after a human has
+    taken control of this same `surface` via live session control and
+    manually gotten past whatever blocked step `resume_from_step - 1` was,
+    calling replay again with that index skips entry navigation and every
+    earlier step — picking up on the *same* session, not a fresh one — and
+    verifies the checkpoint like any other run.
+    """
     # Only the business params are logged. `secrets` never reaches this call —
     # not because RunLogger would fail to redact it, but because a value that
     # never gets passed to anything that logs is stronger than one that has
@@ -91,22 +99,27 @@ def replay(
 
     substitutions = {**params, **{f"secret:{k}": v for k, v in secrets.items()}}
 
-    entry_url = _substitute(artifact.app_target.entry_url, substitutions)
-    nav = surface.act(Action(kind="navigate", value=entry_url))
-    if not nav.ok:
-        capture_failure_evidence(surface, logger, tag="failure-entry-navigate")
-        return ReplayFailure(
-            category="action", step_index=None,
-            expected=f"load {entry_url}", observed=nav.error or "navigation failed",
-        )
+    if resume_from_step is None:
+        entry_url = _substitute(artifact.app_target.entry_url, substitutions)
+        nav = surface.act(Action(kind="navigate", value=entry_url))
+        if not nav.ok:
+            evidence_paths = capture_failure_evidence(surface, logger, tag="failure-entry-navigate")
+            return ReplayFailure(
+                category="action", step_index=None,
+                expected=f"load {entry_url}", observed=nav.error or "navigation failed",
+                evidence_paths=evidence_paths,
+            )
 
-    outcome = _check_known_outcomes(artifact, surface, step_index=None)
-    if outcome is not None:
-        logger.event("business_outcome", controller="system", name=outcome.name, step_index=None)
-        return outcome
+        outcome = _check_known_outcomes(artifact, surface, step_index=None)
+        if outcome is not None:
+            logger.event("business_outcome", controller="system", name=outcome.name, step_index=None)
+            return outcome
+    else:
+        logger.event("replay_resumed", controller="human", resume_from_step=resume_from_step)
 
     outputs: dict[str, Any] = {}
-    for step in artifact.steps:
+    remaining_steps = [s for s in artifact.steps if resume_from_step is None or s.index >= resume_from_step]
+    for step in remaining_steps:
         result = _execute_step(step, substitutions, surface, logger)
 
         if not result.ok:
@@ -115,7 +128,7 @@ def replay(
                 logger.event("business_outcome", controller="system", name=outcome.name, step_index=step.index)
                 return outcome
             logger.event("replay_failed", controller="system", step_index=step.index, error=result.error)
-            capture_failure_evidence(surface, logger, tag=f"failure-step{step.index}")
+            evidence_paths = capture_failure_evidence(surface, logger, tag=f"failure-step{step.index}")
             blocked = (result.error or "").startswith("blocked_by_allowlist")
             return ReplayFailure(
                 category="policy" if blocked else "action",
@@ -123,6 +136,7 @@ def replay(
                 expected=step.description or f"{step.kind} to succeed",
                 observed=result.error or "action did not succeed",
                 detail=_candidates_tried(step),
+                evidence_paths=evidence_paths,
             )
 
         if step.kind == "extract" and step.output_name:
@@ -136,13 +150,14 @@ def replay(
             logger.event("business_outcome", controller="system", name=outcome.name, step_index=None)
             return outcome
         logger.event("checkpoint_failed", controller="system")
-        capture_failure_evidence(surface, logger, tag="failure-checkpoint")
+        evidence_paths = capture_failure_evidence(surface, logger, tag="failure-checkpoint")
         return ReplayFailure(
             category="checkpoint",
             step_index=None,
             expected=artifact.checkpoint.description,
             observed="checkpoint condition not detected on the final page",
             detail="",
+            evidence_paths=evidence_paths,
         )
 
     logger.event("replay_succeeded", controller="system", outputs=outputs)
