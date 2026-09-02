@@ -42,6 +42,15 @@ _LOCATOR_SCHEMA: dict[str, Any] = {
     "required": ["by", "value"],
 }
 
+_REASONING_FIELD: dict[str, Any] = {
+    "type": "string",
+    "description": (
+        "Why this is the right control, and why this locator should stay robust when this "
+        "runs again later without you — this becomes the reviewable description on the "
+        "recorded capability step."
+    ),
+}
+
 TOOL_SCHEMAS: list[dict[str, Any]] = [
     {
         "name": "click",
@@ -50,6 +59,7 @@ TOOL_SCHEMAS: list[dict[str, Any]] = [
             "type": "object",
             "properties": {
                 "locator": _LOCATOR_SCHEMA,
+                "reasoning": _REASONING_FIELD,
                 "expect_dialog": {
                     "type": "string",
                     "enum": ["accept", "dismiss"],
@@ -60,7 +70,7 @@ TOOL_SCHEMAS: list[dict[str, Any]] = [
                     ),
                 },
             },
-            "required": ["locator"],
+            "required": ["locator", "reasoning"],
         },
     },
     {
@@ -68,8 +78,8 @@ TOOL_SCHEMAS: list[dict[str, Any]] = [
         "description": "Type text into a field, replacing its current contents.",
         "input_schema": {
             "type": "object",
-            "properties": {"locator": _LOCATOR_SCHEMA, "text": {"type": "string"}},
-            "required": ["locator", "text"],
+            "properties": {"locator": _LOCATOR_SCHEMA, "text": {"type": "string"}, "reasoning": _REASONING_FIELD},
+            "required": ["locator", "text", "reasoning"],
         },
     },
     {
@@ -77,8 +87,8 @@ TOOL_SCHEMAS: list[dict[str, Any]] = [
         "description": "Choose an option in a <select> dropdown.",
         "input_schema": {
             "type": "object",
-            "properties": {"locator": _LOCATOR_SCHEMA, "option": {"type": "string"}},
-            "required": ["locator", "option"],
+            "properties": {"locator": _LOCATOR_SCHEMA, "option": {"type": "string"}, "reasoning": _REASONING_FIELD},
+            "required": ["locator", "option", "reasoning"],
         },
     },
     {
@@ -89,8 +99,9 @@ TOOL_SCHEMAS: list[dict[str, Any]] = [
             "properties": {
                 "locator": _LOCATOR_SCHEMA,
                 "timeout_ms": {"type": "integer", "default": 8000},
+                "reasoning": _REASONING_FIELD,
             },
-            "required": ["locator"],
+            "required": ["locator", "reasoning"],
         },
     },
     {
@@ -98,8 +109,12 @@ TOOL_SCHEMAS: list[dict[str, Any]] = [
         "description": "Read the text/value of a control and record it under a named output.",
         "input_schema": {
             "type": "object",
-            "properties": {"locator": _LOCATOR_SCHEMA, "output_name": {"type": "string"}},
-            "required": ["locator", "output_name"],
+            "properties": {
+                "locator": _LOCATOR_SCHEMA,
+                "output_name": {"type": "string"},
+                "reasoning": _REASONING_FIELD,
+            },
+            "required": ["locator", "output_name", "reasoning"],
         },
     },
     {

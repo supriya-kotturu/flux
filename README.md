@@ -16,7 +16,7 @@ progress and will be replaced with the full setup/demo instructions once the cor
 - [x] Phase 1 — `mock_bank/`, the target surface
 - [x] Phase 2 — `Surface` abstraction + Playwright driver
 - [x] Phase 3 — LLM discovery loop
-- [ ] Phase 4 — artifact schema + recorder
+- [x] Phase 4 — artifact schema + recorder
 - [ ] Phase 5 — deterministic replay engine
 - [ ] Phase 6 — safety guardrails
 - [ ] Phase 7 — observability/evidence
@@ -55,14 +55,20 @@ need to handle (see `mock_bank/data.py`):
 cp .env.example .env   # then fill in ANTHROPIC_API_KEY
 python -m flask --app mock_bank.app run --port 5055 &   # or in a separate terminal
 flux discover --goal "look up member 10001 and read their savings balance" \
-  --target http://127.0.0.1:5055/login --name lookup_member_savings_balance
+  --target http://127.0.0.1:5055/login --name lookup_member_savings_balance \
+  --param member_id=10001
 ```
 
-Artifact saving lands in Phase 4 — right now this prints the run's stop reason,
-outputs, and where the structured run log landed under `evidence/runs/`.
-The loop itself (stopping conditions, action translation, dialog handling)
-is covered by `tests/integration/test_discovery_loop.py` against a scripted
-fake LLM, so the test suite never needs a real API key.
+On success this saves a typed, versioned capability artifact to
+`artifacts/lookup_member_savings_balance.json` — `--param name=value` tells the
+recorder which concrete values used during this run should become `{{name}}`
+placeholders in the saved artifact (so the same capability can be replayed
+against a different member later). Replay lands in Phase 5.
+
+The loop itself (stopping conditions, action translation, dialog handling) and
+the recorder (templating, output typing, the irreversible-step approval gate)
+are both covered against a scripted fake LLM in `tests/integration/`, so the
+test suite never needs a real API key.
 
 ## Tests
 
