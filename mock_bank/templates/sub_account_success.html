@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Sub-Account Opened</h2>
+<p class="outcomeText">New sub-account {{ sub_account.account_number }} opened successfully for {{ member.first_name }} {{ member.last_name }} ({{ member.member_id }}).</p>
+<table class="data">
+  <tr><th>Field</th><th>Value</th></tr>
+  <tr><td>Account Number</td><td>{{ sub_account.account_number }}</td></tr>
+  <tr><td>Account Type</td><td>{{ sub_account.account_type }}</td></tr>
+  <tr><td>Opening Balance</td><td>${{ "%.2f"|format(sub_account.balance) }}</td></tr>
+</table>
+<p><a href="{{ url_for('member_detail', member_id=member.member_id) }}">Back to Member Record</a></p>
+{% endblock %}

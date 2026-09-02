@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Member Record: {{ member.first_name }} {{ member.last_name }} ({{ member.member_id }})</h2>
+<table class="data">
+  <tr><th>Field</th><th>Value</th></tr>
+  <tr><td>Member ID</td><td>{{ member.member_id }}</td></tr>
+  <tr><td>Name</td><td>{{ member.first_name }} {{ member.last_name }}</td></tr>
+  <tr><td>Status</td><td>{{ member.status }}</td></tr>
+  <tr><td>Savings Balance</td><td>${{ "%.2f"|format(member.savings_balance) }}</td></tr>
+  <tr><td>Checking Balance</td><td>${{ "%.2f"|format(member.checking_balance) }}</td></tr>
+</table>
+
+{% if member.sub_accounts %}
+<h3>Sub-Accounts</h3>
+<table class="data">
+  <tr><th>Account Number</th><th>Type</th><th>Balance</th></tr>
+  {% for sa in member.sub_accounts %}
+  <tr><td>{{ sa.account_number }}</td><td>{{ sa.account_type }}</td><td>${{ "%.2f"|format(sa.balance) }}</td></tr>
+  {% endfor %}
+</table>
+{% endif %}
+
+<p><a href="{{ url_for('sub_account_new', member_id=member.member_id) }}">Open New Sub-Account</a></p>
+<p><a href="{{ url_for('search') }}">Back to Member Search</a></p>
+{% endblock %}

@@ -1,0 +1,37 @@
+<!doctype html>
+<html>
+<head>
+<title>{% block title %}Meridian Core Banking Console{% endblock %}</title>
+<style>
+  body { font-family: "MS Sans Serif", Tahoma, Arial, sans-serif; font-size: 13px; background: #d4d0c8; margin: 0; }
+  table.frame { width: 100%; border-collapse: collapse; }
+  td.header { background: #003366; color: #ffffff; padding: 6px 10px; font-weight: bold; font-size: 16px; }
+  td.subheader { background: #99b3cc; color: #000000; padding: 3px 10px; font-size: 11px; }
+  td.body { padding: 14px; vertical-align: top; background: #ffffff; }
+  table.data { border-collapse: collapse; margin-top: 8px; }
+  table.data th, table.data td { border: 1px solid #808080; padding: 4px 8px; text-align: left; }
+  table.data th { background: #c0c0c0; }
+  .errorText { color: #aa0000; font-weight: bold; }
+  .noticeText { color: #444400; font-weight: bold; background: #ffffcc; padding: 4px; border: 1px solid #cccc99; }
+  .outcomeText { font-weight: bold; }
+  fieldset { border: 1px solid #808080; margin-top: 10px; }
+  legend { font-weight: bold; }
+  input[type=text], input[type=password] { font-family: inherit; font-size: 13px; }
+</style>
+</head>
+<body>
+<table class="frame">
+  <tr><td class="header">Meridian Core Banking Console</td></tr>
+  <tr><td class="subheader">
+    {% if session.get('logged_in') %}
+      Operator: operator &nbsp;|&nbsp; <a href="{{ url_for('search') }}">Member Search</a> &nbsp;|&nbsp; <a href="{{ url_for('logout') }}">Log Off</a>
+    {% else %}
+      Not logged in
+    {% endif %}
+  </td></tr>
+  <tr><td class="body">
+    {% block content %}{% endblock %}
+  </td></tr>
+</table>
+</body>
+</html>

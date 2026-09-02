@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Member Search</h2>
+<form method="post" action="{{ url_for('search') }}">
+  <label for="query">Member ID or last name</label>
+  <input type="text" id="query" name="query" value="{{ query }}" />
+  <button type="submit">Search</button>
+</form>
+
+{% if results is not none %}
+  {% if results %}
+  <table class="data">
+    <tr><th>Member ID</th><th>Last Name</th><th>First Name</th><th>Status</th><th></th></tr>
+    {% for m in results %}
+    <tr>
+      <td>{{ m.member_id }}</td>
+      <td>{{ m.last_name }}</td>
+      <td>{{ m.first_name }}</td>
+      <td>{{ "RESTRICTED" if m.status == "restricted" else "Active" }}</td>
+      <td><a href="{{ url_for('member_detail', member_id=m.member_id) }}">Open Record</a></td>
+    </tr>
+    {% endfor %}
+  </table>
+  {% else %}
+  <p class="outcomeText">No members matched "{{ query }}".</p>
+  {% endif %}
+{% endif %}
+{% endblock %}

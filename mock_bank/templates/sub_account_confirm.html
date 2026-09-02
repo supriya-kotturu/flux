@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Confirm New Sub-Account: {{ member.first_name }} {{ member.last_name }} ({{ member.member_id }})</h2>
+<p>Please review the details below before confirming. This action cannot be undone.</p>
+<table class="data">
+  <tr><th>Field</th><th>Value</th></tr>
+  <tr><td>Account Type</td><td>{{ pending.account_type }}</td></tr>
+  <tr><td>Initial Deposit</td><td>${{ pending.initial_deposit }}</td></tr>
+</table>
+<form method="post" action="{{ url_for('sub_account_confirm', member_id=member.member_id) }}"
+      onsubmit="return window.confirm('This will open a new account and cannot be undone. Continue?');">
+  <p><button type="submit">Confirm and Open Account</button></p>
+</form>
+<p><a href="{{ url_for('sub_account_new', member_id=member.member_id) }}">Back to Edit</a></p>
+{% endblock %}

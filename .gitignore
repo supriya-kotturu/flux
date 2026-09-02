@@ -1,0 +1,24 @@
+__pycache__/
+*.pyc
+.venv/
+venv/
+*.egg-info/
+build/
+dist/
+
+.env
+.env.local
+
+# Playwright
+test-results/
+playwright-report/
+.playwright-mcp/
+
+# Evidence is a deliverable dir, but ignore raw run scratch that isn't curated
+evidence/runs/
+
+# OS/editor
+.DS_Store
+.vscode/
+.idea/
+*.log

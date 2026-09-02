@@ -1,0 +1,6 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Member Record</h2>
+<p class="errorText">Access Denied: insufficient permissions to view record {{ member_id }}. Contact your supervisor to request access.</p>
+<p><a href="{{ url_for('search') }}">Back to Member Search</a></p>
+{% endblock %}

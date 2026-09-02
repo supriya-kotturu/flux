@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Open New Sub-Account: {{ member.first_name }} {{ member.last_name }} ({{ member.member_id }})</h2>
+{% if error %}
+  <p class="errorText">{{ error }}</p>
+{% endif %}
+<form method="post" action="{{ url_for('sub_account_new', member_id=member.member_id) }}">
+  <fieldset>
+    <legend>New Sub-Account Details</legend>
+    <table>
+      <tr>
+        <td><label for="account_type">Account Type</label></td>
+        <td>
+          <select id="account_type" name="account_type">
+            <option value="savings" {{ "selected" if account_type == "savings" }}>Savings</option>
+            <option value="money_market" {{ "selected" if account_type == "money_market" }}>Money Market</option>
+          </select>
+        </td>
+      </tr>
+      <tr>
+        <td><label for="initial_deposit">Initial Deposit ($)</label></td>
+        <td><input type="text" id="initial_deposit" name="initial_deposit" value="{{ deposit_raw }}" /></td>
+      </tr>
+    </table>
+  </fieldset>
+  <p><button type="submit">Continue</button></p>
+</form>
+<p><a href="{{ url_for('member_detail', member_id=member.member_id) }}">Cancel and Return to Record</a></p>
+{% endblock %}
