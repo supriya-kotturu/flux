@@ -15,7 +15,7 @@ progress and will be replaced with the full setup/demo instructions once the cor
 - [x] Phase 0 — repo scaffolding, CLI skeleton
 - [x] Phase 1 — `mock_bank/`, the target surface
 - [x] Phase 2 — `Surface` abstraction + Playwright driver
-- [ ] Phase 3 — LLM discovery loop
+- [x] Phase 3 — LLM discovery loop
 - [ ] Phase 4 — artifact schema + recorder
 - [ ] Phase 5 — deterministic replay engine
 - [ ] Phase 6 — safety guardrails
@@ -48,6 +48,21 @@ need to handle (see `mock_bank/data.py`):
 | `30001` | Slow load (~4s) on the detail page |
 | `40001` | Session silently expires on access, back to login |
 | anything else | Not found |
+
+## Running a live discovery (needs an Anthropic API key)
+
+```bash
+cp .env.example .env   # then fill in ANTHROPIC_API_KEY
+python -m flask --app mock_bank.app run --port 5055 &   # or in a separate terminal
+flux discover --goal "look up member 10001 and read their savings balance" \
+  --target http://127.0.0.1:5055/login --name lookup_member_savings_balance
+```
+
+Artifact saving lands in Phase 4 — right now this prints the run's stop reason,
+outputs, and where the structured run log landed under `evidence/runs/`.
+The loop itself (stopping conditions, action translation, dialog handling)
+is covered by `tests/integration/test_discovery_loop.py` against a scripted
+fake LLM, so the test suite never needs a real API key.
 
 ## Tests
 

@@ -26,13 +26,41 @@ def main() -> None:
     help="Natural language goal, e.g. 'look up member 12345 and read their savings balance'",
 )
 @click.option("--target", required=True, help="Entry point URL for the target application")
-@click.option("--name", required=True, help="Name to save the resulting artifact under")
-def discover(goal: str, target: str, name: str) -> None:
-    """Run the LLM-driven discovery loop against a live surface and save an artifact."""
-    raise click.ClickException(
-        "discovery loop not implemented yet (Phase 3) — scaffolding only. "
-        f"Would run goal={goal!r} target={target!r} -> artifacts/{name}.json"
-    )
+@click.option("--name", required=True, help="Name to save the resulting artifact under (artifact saving lands in Phase 4)")
+@click.option("--headless/--headed", default=False, help="Headed by default — watchable, and matches the handoff design.")
+@click.option("--max-steps", default=20, show_default=True)
+def discover(goal: str, target: str, name: str, headless: bool, max_steps: int) -> None:
+    """Run the LLM-driven discovery loop against a live surface."""
+    from pathlib import Path
+
+    from dotenv import load_dotenv
+
+    load_dotenv()
+
+    from flux.agent.llm_client import AnthropicClient
+    from flux.agent.loop import run_discovery
+    from flux.observability.logger import RunLogger, new_run_id
+    from flux.surface.browser import BrowserSurface
+
+    logger = RunLogger(new_run_id("discover"), evidence_root=Path("evidence"))
+    surface = BrowserSurface.launch(headless=headless)
+    try:
+        run = run_discovery(
+            goal=goal, target=target, surface=surface,
+            llm=AnthropicClient(), logger=logger, max_steps=max_steps,
+        )
+    finally:
+        surface.close()
+
+    click.echo(f"stop_reason={run.stop_reason} success={run.success}")
+    if run.outputs:
+        click.echo(f"outputs={run.outputs}")
+    if run.give_up_reason:
+        click.echo(f"give_up_reason={run.give_up_reason}")
+    click.echo(f"(artifact recording lands in Phase 4 — artifacts/{name}.json was not written)")
+    click.echo(f"evidence: {logger.run_dir}")
+    if not run.success:
+        raise SystemExit(1)
 
 
 @main.command()
