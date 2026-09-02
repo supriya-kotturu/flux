@@ -47,6 +47,10 @@ class ReplayFailure(BaseModel):
     expected: str
     observed: str
     detail: str = ""
+    # Populated for non-policy failures via flux.observability.evidence — a
+    # caller escalating this to a human (flux.escalation) attaches these
+    # directly to the intervention request instead of re-deriving file paths.
+    evidence_paths: dict[str, str] = Field(default_factory=dict)
 
 
 ReplayResult = Union[ReplaySuccess, ReplayBusinessOutcome, ReplayFailure]

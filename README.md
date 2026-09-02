@@ -20,7 +20,7 @@ progress and will be replaced with the full setup/demo instructions once the cor
 - [x] Phase 5 — deterministic replay engine
 - [x] Phase 6 — safety guardrails
 - [x] Phase 7 — observability/evidence
-- [ ] Phase 8 — escalation & handoff
+- [x] Phase 8 — escalation & handoff
 - [ ] Phase 9 — final README/REPORT + curated `/evidence/`
 
 ## Running the mock bank portal today
@@ -77,6 +77,49 @@ legitimate answer, not a crash), or a `failure` with the step index, what was
 expected, and what was observed. An artifact with any irreversible step
 (dialog-confirmed, e.g. opening a sub-account) refuses to run unattended
 unless you pass `--approve`.
+
+## Escalation & handoff
+
+When replay hits a real failure (not a policy block — see Safety below),
+`--escalate-on-failure` keeps the session open instead of closing it, raises
+an intervention request, and waits:
+
+```bash
+flux replay --artifact lookup_member_savings_balance --param member_id=10002 \
+  --secret password=letmein --escalate-on-failure --headed
+```
+
+```
+Escalating — intervention request b5e76cc8
+  reason: action: no locator candidate resolved to exactly one element
+  take control: https://chrome-devtools-frontend.appspot.com/serve_rev/.../inspector.html?ws=127.0.0.1:9222/...
+  once you've bridged the gap, run: flux operator resume b5e76cc8
+  waiting up to 300s...
+```
+
+The "take control" URL is the *same live browser session's* own DevTools
+front-end, resolved from its CDP endpoint (`BrowserSurface` launches with
+`--remote-debugging-port` by default) — not a fresh tab, not a screenshot. A
+person opens it in any Chromium browser, sees and drives the real page, does
+whatever the automation couldn't, then — from a separate terminal —:
+
+```bash
+flux operator list             # see what's pending, and its devtools URL
+flux operator resume b5e76cc8 --note "typed the member ID manually"
+```
+
+The waiting process picks that up (`flux.escalation.handoff.ControlPlaneStore`
+is a small on-disk record under `evidence/escalations/`, so the two
+processes need no shared memory) and resumes the *remaining* recorded steps
+on that same session (`replay(..., resume_from_step=...)`), verifying the
+checkpoint like any other run. Playwright's own event listeners keep logging
+throughout, so the evidence trail is continuous across the handoff.
+
+Detection (`flux.escalation.detector`) only escalates real failures — a
+policy block (missing `--approve`, a missing secret) is a configuration
+problem an operator fixes by re-running with the right flags, not something
+a live browser helps with. `flux discover` detects the same stuck states but
+doesn't yet wire up live mid-loop handoff — see Cuts in `docs/ROADMAP.md`.
 
 ## Safety
 

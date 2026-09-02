@@ -16,6 +16,7 @@ playwright-report/
 
 # Evidence is a deliverable dir, but ignore raw run scratch that isn't curated
 evidence/runs/
+evidence/escalations/
 
 # OS/editor
 .DS_Store

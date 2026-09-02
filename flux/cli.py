@@ -83,6 +83,15 @@ def discover(
     click.echo(f"evidence: {logger.run_dir}")
 
     if not run.success:
+        from flux.escalation.detector import discovery_should_escalate
+
+        if discovery_should_escalate(run):
+            click.echo(
+                "This run stopped in a state that qualifies for human escalation "
+                "(see flux.escalation.detector). Live hand-off mid-discovery isn't wired "
+                "into this CLI command yet — see `flux replay --escalate-on-failure` for "
+                "the real mechanism, which discovery shares the same building blocks with."
+            )
         raise SystemExit(1)
 
     origin = urlsplit(target)
@@ -115,9 +124,19 @@ def discover(
     help="Additional allowed domain beyond the artifact's own app_target host. Repeatable.",
 )
 @click.option("--headless/--headed", default=False)
+@click.option(
+    "--escalate-on-failure", is_flag=True, default=False,
+    help=(
+        "If replay hits a real failure (not a policy block), keep the session open, raise an "
+        "intervention request with a live DevTools URL, and wait for `flux operator resume` "
+        "before completing the remaining steps on that same session."
+    ),
+)
+@click.option("--escalation-timeout", default=300.0, show_default=True, help="Seconds to wait for --escalate-on-failure.")
 def replay(
     artifact_name: str, params: tuple[str, ...], secret_opts: tuple[str, ...],
     approve: bool, extra_domains: tuple[str, ...], headless: bool,
+    escalate_on_failure: bool, escalation_timeout: float,
 ) -> None:
     """Deterministically replay a saved artifact — no LLM in the loop."""
     import os
@@ -128,6 +147,8 @@ def replay(
     load_dotenv()
 
     from flux.artifact import store
+    from flux.escalation.detector import replay_should_escalate
+    from flux.escalation.handoff import ControlPlaneStore
     from flux.observability.logger import RunLogger, new_run_id
     from flux.replay.executor import replay as run_replay
     from flux.safety.allowlist import Allowlist
@@ -147,10 +168,42 @@ def replay(
     allowlist = Allowlist.for_domain(artifact.app_target.base_url, *extra_domains)
     logger = RunLogger(new_run_id("replay"), evidence_root=Path("evidence"))
     surface = BrowserSurface.launch(headless=headless, allowlist=allowlist)
-    try:
-        result = run_replay(artifact, replay_params, surface, logger, approved=approve, secrets=secrets)
-    finally:
-        surface.close()
+
+    result = run_replay(artifact, replay_params, surface, logger, approved=approve, secrets=secrets)
+
+    if escalate_on_failure and replay_should_escalate(result):
+        store_ = ControlPlaneStore()
+        request = store_.raise_request(
+            run_id=logger.run_id, capability=artifact.name,
+            step_description=(
+                artifact.steps[result.step_index].description if result.step_index is not None else artifact.checkpoint.description
+            ),
+            reason=f"{result.category}: {result.observed}",
+            screenshot_path=result.evidence_paths.get("screenshot"),
+            ax_tree_path=result.evidence_paths.get("ax_tree"),
+            cdp_port=surface.cdp_port,
+        )
+        click.echo(f"\nEscalating — intervention request {request.id}")
+        click.echo(f"  reason: {request.reason}")
+        if request.devtools_url:
+            click.echo(f"  take control: {request.devtools_url}")
+        click.echo(f"  once you've bridged the gap, run: flux operator resume {request.id}")
+        click.echo(f"  waiting up to {escalation_timeout:.0f}s...")
+
+        try:
+            store_.wait_for_resume(request.id, timeout=escalation_timeout)
+        except TimeoutError as exc:
+            surface.close()
+            click.echo(str(exc))
+            raise SystemExit(1) from exc
+
+        resume_from = (result.step_index if result.step_index is not None else 0) + 1
+        result = run_replay(
+            artifact, replay_params, surface, logger, approved=approve, secrets=secrets,
+            resume_from_step=resume_from,
+        )
+
+    surface.close()
 
     click.echo(f"result={result.kind}")
     if result.kind == "success":
@@ -167,6 +220,36 @@ def replay(
 
     if result.kind == "failure":
         raise SystemExit(1)
+
+
+@main.group()
+def operator() -> None:
+    """List and act on pending human-escalation requests (flux.escalation)."""
+
+
+@operator.command("list")
+def operator_list() -> None:
+    from flux.escalation.handoff import ControlPlaneStore
+
+    pending = ControlPlaneStore().list_pending()
+    if not pending:
+        click.echo("No pending intervention requests.")
+        return
+    for request in pending:
+        click.echo(f"{request.id}  [{request.status}]  {request.capability} — {request.reason}")
+        click.echo(f"    stuck at: {request.step_description}")
+        if request.devtools_url:
+            click.echo(f"    take control: {request.devtools_url}")
+
+
+@operator.command("resume")
+@click.argument("request_id")
+@click.option("--note", default="", help="What you did, for the evidence trail.")
+def operator_resume(request_id: str, note: str) -> None:
+    from flux.escalation.handoff import ControlPlaneStore
+
+    request = ControlPlaneStore().resume(request_id, human_actions_summary=note)
+    click.echo(f"{request.id} marked resumed — the waiting `flux replay --escalate-on-failure` process will pick this up.")
 
 
 if __name__ == "__main__":

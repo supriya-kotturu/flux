@@ -35,12 +35,13 @@ DEFAULT_CDP_PORT = 9222
 
 
 class BrowserSurface(Surface):
-    def __init__(self, page: Page, allowlist: Allowlist | None = None) -> None:
+    def __init__(self, page: Page, allowlist: Allowlist | None = None, cdp_port: int | None = None) -> None:
         self._page = page
         self._armed_dialog_response: DialogResponse = "dismiss"
         self._last_dialog: DialogInfo | None = None
         self._owns: tuple[Any, Any, Any] | None = None
         self._allowlist = allowlist
+        self._cdp_port = cdp_port
         page.on("dialog", self._on_dialog)
 
     @classmethod
@@ -55,13 +56,19 @@ class BrowserSurface(Surface):
         browser = playwright.chromium.launch(**launch_kwargs)
         context = browser.new_context()
         page = context.new_page()
-        surface = cls(page, allowlist=allowlist)
+        surface = cls(page, allowlist=allowlist, cdp_port=cdp_port)
         surface._owns = (playwright, browser, context)
         return surface
 
     @property
     def page(self) -> Page:
         return self._page
+
+    @property
+    def cdp_port(self) -> int | None:
+        """None unless launched with one — the handoff seam (flux.escalation)
+        needs this to resolve the live tab's own DevTools front-end URL."""
+        return self._cdp_port
 
     def screenshot(self) -> bytes:
         return self._page.screenshot(type="png")

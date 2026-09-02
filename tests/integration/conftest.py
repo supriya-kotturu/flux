@@ -24,6 +24,19 @@ def _free_port() -> int:
         return s.getsockname()[1]
 
 
+# The session's one pytest-playwright-managed browser exposes CDP too, so
+# tests that need a real DevTools/CDP endpoint (flux.escalation's handoff
+# mechanism) don't have to start an independent second Playwright instance —
+# that conflicts with pytest-playwright's own sync-API event loop in the
+# same thread ("using Playwright Sync API inside the asyncio loop").
+TEST_CDP_PORT = 9333
+
+
+@pytest.fixture(scope="session")
+def browser_type_launch_args(browser_type_launch_args):
+    return {**browser_type_launch_args, "args": [f"--remote-debugging-port={TEST_CDP_PORT}"]}
+
+
 @pytest.fixture(scope="session")
 def mock_bank_server() -> str:
     port = _free_port()
