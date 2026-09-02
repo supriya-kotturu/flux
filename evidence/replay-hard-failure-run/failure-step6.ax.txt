@@ -1,0 +1,41 @@
+- table:
+  - rowgroup:
+    - row "Meridian Core Banking Console":
+      - cell "Meridian Core Banking Console"
+    - 'row "Operator: operator | Member Search | Log Off"':
+      - 'cell "Operator: operator | Member Search | Log Off"':
+        - text: "Operator: operator |"
+        - link "Member Search":
+          - /url: /search
+        - text: "|"
+        - link "Log Off":
+          - /url: /logout
+    - 'row "Member Record: Marcus Ibe (10002) Field Value Member ID 10002 Name Marcus Ibe Status active Savings Balance $980.00 Checking Balance $120.44 Open New Sub-Account Back to Member Search"':
+      - 'cell "Member Record: Marcus Ibe (10002) Field Value Member ID 10002 Name Marcus Ibe Status active Savings Balance $980.00 Checking Balance $120.44 Open New Sub-Account Back to Member Search"':
+        - 'heading "Member Record: Marcus Ibe (10002)" [level=2]'
+        - table:
+          - rowgroup:
+            - row "Field Value":
+              - columnheader "Field"
+              - columnheader "Value"
+            - row "Member ID 10002":
+              - cell "Member ID"
+              - cell "10002"
+            - row "Name Marcus Ibe":
+              - cell "Name"
+              - cell "Marcus Ibe"
+            - row "Status active":
+              - cell "Status"
+              - cell "active"
+            - row "Savings Balance $980.00":
+              - cell "Savings Balance"
+              - cell "$980.00"
+            - row "Checking Balance $120.44":
+              - cell "Checking Balance"
+              - cell "$120.44"
+        - paragraph:
+          - link "Open New Sub-Account":
+            - /url: /member/10002/sub-account/new
+        - paragraph:
+          - link "Back to Member Search":
+            - /url: /search

@@ -1,0 +1,9 @@
+{"ts": "2026-09-02T03:38:39.773619+00:00", "run_id": "replay-20260902-033839-6197be", "event_type": "replay_started", "controller": "system", "artifact": "lookup_member_savings_balance", "params": {"member_id": "10002"}}
+{"ts": "2026-09-02T03:38:39.906720+00:00", "run_id": "replay-20260902-033839-6197be", "event_type": "step_ok", "controller": "system", "step_index": 0, "kind": "type"}
+{"ts": "2026-09-02T03:38:39.933555+00:00", "run_id": "replay-20260902-033839-6197be", "event_type": "step_ok", "controller": "system", "step_index": 1, "kind": "type"}
+{"ts": "2026-09-02T03:38:40.020418+00:00", "run_id": "replay-20260902-033839-6197be", "event_type": "step_ok", "controller": "system", "step_index": 2, "kind": "click"}
+{"ts": "2026-09-02T03:38:40.093866+00:00", "run_id": "replay-20260902-033839-6197be", "event_type": "step_ok", "controller": "system", "step_index": 3, "kind": "type"}
+{"ts": "2026-09-02T03:38:40.162856+00:00", "run_id": "replay-20260902-033839-6197be", "event_type": "step_ok", "controller": "system", "step_index": 4, "kind": "click"}
+{"ts": "2026-09-02T03:38:40.257777+00:00", "run_id": "replay-20260902-033839-6197be", "event_type": "step_ok", "controller": "system", "step_index": 5, "kind": "click"}
+{"ts": "2026-09-02T03:38:40.284394+00:00", "run_id": "replay-20260902-033839-6197be", "event_type": "replay_failed", "controller": "system", "step_index": 6, "error": "no locator candidate resolved to exactly one element"}
+{"ts": "2026-09-02T03:38:40.386022+00:00", "run_id": "replay-20260902-033839-6197be", "event_type": "evidence_captured", "controller": "system", "tag": "failure-step6", "screenshot": "evidence\\runs\\replay-20260902-033839-6197be\\failure-step6.png", "ax_tree": "evidence\\runs\\replay-20260902-033839-6197be\\failure-step6.ax.txt"}

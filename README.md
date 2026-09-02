@@ -5,41 +5,37 @@ once, the run becomes a typed reusable **capability artifact**, and after that t
 **replays deterministically** — no model in the loop — with real error handling and a way to
 pull a human in when it can't safely proceed.
 
-Built for the interface.ai take-home; see [`docs/BRIEF.md`](docs/BRIEF.md) for the assignment
-and [`docs/ROADMAP.md`](docs/ROADMAP.md) for the design/build plan. **This README is a work in
-progress and will be replaced with the full setup/demo instructions once the core loop
-(Phase 3-5) exists.**
+Built for the interface.ai take-home. See [`REPORT.md`](REPORT.md) for the design write-up
+(architecture, artifact schema, determinism/error handling, heterogeneity & multi-tenant,
+escalation & handoff, safety, cuts), [`docs/ROADMAP.md`](docs/ROADMAP.md) for the phase-by-phase
+build plan this was developed against, and [`/evidence/`](evidence/) for curated run logs.
 
-## Status
-
-- [x] Phase 0 — repo scaffolding, CLI skeleton
-- [x] Phase 1 — `mock_bank/`, the target surface
-- [x] Phase 2 — `Surface` abstraction + Playwright driver
-- [x] Phase 3 — LLM discovery loop
-- [x] Phase 4 — artifact schema + recorder
-- [x] Phase 5 — deterministic replay engine
-- [x] Phase 6 — safety guardrails
-- [x] Phase 7 — observability/evidence
-- [x] Phase 8 — escalation & handoff
-- [ ] Phase 9 — final README/REPORT + curated `/evidence/`
-
-## Running the mock bank portal today
-
-The target surface — a deliberately legacy-hostile banking back-office console
-(server-rendered, table layout, no test IDs) — already runs standalone.
+## Setup
 
 ```bash
 python -m venv .venv
-.venv/Scripts/activate   # .venv/bin/activate on macOS/Linux
+.venv/Scripts/activate          # .venv/bin/activate on macOS/Linux
 pip install -e ".[dev]"
+python -m playwright install chromium
+```
+
+No API key is needed for any of the above, for the mock bank, or for the test suite (`pytest`) —
+the discovery loop and the recorder are both covered against a scripted fake LLM client driving
+the real browser and the real mock bank, so nothing in CI needs live credentials. An
+`ANTHROPIC_API_KEY` is only needed for an actual live `flux discover` run (see below).
+
+## Demo path
+
+**1. Start the target surface** — a deliberately legacy-hostile banking back-office console
+(server-rendered, table layout, no test IDs):
+
+```bash
 python -m flask --app mock_bank.app run --port 5055
 ```
 
-Open `http://127.0.0.1:5055`, sign in with `operator` / `letmein` (fake credentials, local
-only — see `mock_bank/app.py`), and search for member `10001`.
-
-Reserved member IDs deterministically trigger the runtime conditions the replay engine will
-need to handle (see `mock_bank/data.py`):
+Sign in at `http://127.0.0.1:5055` with `operator` / `letmein` (fake, local-only credentials —
+see `mock_bank/app.py`) to look around. Reserved member IDs deterministically trigger the runtime
+conditions replay has to handle (see `mock_bank/data.py`):
 
 | Member ID | Behavior |
 |---|---|
@@ -49,40 +45,40 @@ need to handle (see `mock_bank/data.py`):
 | `40001` | Session silently expires on access, back to login |
 | anything else | Not found |
 
-## Running a live discovery (needs an Anthropic API key)
+**2. Run the agent on a goal** (needs `ANTHROPIC_API_KEY` — copy `.env.example` to `.env` or
+`.env.local` and fill it in):
 
 ```bash
-cp .env.example .env   # then fill in ANTHROPIC_API_KEY
-python -m flask --app mock_bank.app run --port 5055 &   # or in a separate terminal
 flux discover --goal "look up member 10001 and read their savings balance" \
   --target http://127.0.0.1:5055/login --name lookup_member_savings_balance \
   --param member_id=10001
 ```
 
 On success this saves a typed, versioned capability artifact to
-`artifacts/lookup_member_savings_balance.json` — `--param name=value` tells the
-recorder which concrete values used during this run should become `{{name}}`
-placeholders in the saved artifact (so the same capability can be replayed
-against a different member later).
+`artifacts/lookup_member_savings_balance.json`. `--param name=value` tells the recorder which
+concrete value used *this* run should become a `{{name}}` placeholder in the saved artifact, so
+the same capability replays correctly against a different member later.
 
-## Replaying a saved artifact (no LLM, no API key needed)
+**3. Replay the resulting artifact — no LLM, no API key:**
 
 ```bash
 flux replay --artifact lookup_member_savings_balance --param member_id=10002 --secret password=letmein
 ```
 
-Prints a structured result: `success` with typed outputs, a declared
-`business_outcome` (e.g. `--param member_id=77777` — no such member, a
-legitimate answer, not a crash), or a `failure` with the step index, what was
-expected, and what was observed. An artifact with any irreversible step
-(dialog-confirmed, e.g. opening a sub-account) refuses to run unattended
-unless you pass `--approve`.
+Prints a structured result: `success` with typed outputs (member 10002's real balance, not the
+member it was recorded against — proving the parameterization is real), a declared
+`business_outcome` (try `--param member_id=77777` — no such member, a legitimate answer, not a
+crash), or a `failure` with the step index, what was expected, and what was observed.
+
+Don't have a live API key handy? `evidence/` already has a curated discovery run, a successful
+replay, a business-outcome replay, and a hard-failure replay (with screenshot + accessibility-tree
+evidence) generated the same way the test suite does — see [`evidence/README.md`](evidence/README.md).
 
 ## Escalation & handoff
 
 When replay hits a real failure (not a policy block — see Safety below),
-`--escalate-on-failure` keeps the session open instead of closing it, raises
-an intervention request, and waits:
+`--escalate-on-failure` keeps the session open instead of closing it, raises an intervention
+request, and waits:
 
 ```bash
 flux replay --artifact lookup_member_savings_balance --param member_id=10002 \
@@ -97,62 +93,51 @@ Escalating — intervention request b5e76cc8
   waiting up to 300s...
 ```
 
-The "take control" URL is the *same live browser session's* own DevTools
-front-end, resolved from its CDP endpoint (`BrowserSurface` launches with
-`--remote-debugging-port` by default) — not a fresh tab, not a screenshot. A
-person opens it in any Chromium browser, sees and drives the real page, does
-whatever the automation couldn't, then — from a separate terminal —:
+The "take control" URL is the *same live browser session's* own DevTools front-end, resolved from
+its CDP endpoint (`BrowserSurface` launches with `--remote-debugging-port` by default) — not a
+fresh tab, not a screenshot. A person opens it in any Chromium browser, sees and drives the real
+page, does whatever the automation couldn't, then — from a separate terminal —:
 
 ```bash
 flux operator list             # see what's pending, and its devtools URL
 flux operator resume b5e76cc8 --note "typed the member ID manually"
 ```
 
-The waiting process picks that up (`flux.escalation.handoff.ControlPlaneStore`
-is a small on-disk record under `evidence/escalations/`, so the two
-processes need no shared memory) and resumes the *remaining* recorded steps
-on that same session (`replay(..., resume_from_step=...)`), verifying the
-checkpoint like any other run. Playwright's own event listeners keep logging
-throughout, so the evidence trail is continuous across the handoff.
+The waiting process picks that up (`flux.escalation.handoff.ControlPlaneStore` is a small on-disk
+record under `evidence/escalations/`, so the two processes need no shared memory) and resumes the
+*remaining* recorded steps on that same session (`replay(..., resume_from_step=...)`), verifying
+the checkpoint like any other run. Playwright's own event listeners keep logging throughout, so
+the evidence trail is continuous across the handoff.
 
-Detection (`flux.escalation.detector`) only escalates real failures — a
-policy block (missing `--approve`, a missing secret) is a configuration
-problem an operator fixes by re-running with the right flags, not something
-a live browser helps with. `flux discover` detects the same stuck states but
-doesn't yet wire up live mid-loop handoff — see Cuts in `docs/ROADMAP.md`.
+Detection (`flux.escalation.detector`) only escalates real failures — a policy block (missing
+`--approve`, a missing secret) is a configuration problem an operator fixes by re-running with
+the right flags, not something a live browser helps with. `flux discover` detects the same stuck
+states but doesn't yet wire up live mid-loop handoff — see Cuts in `REPORT.md`.
 
 ## Safety
 
-- **Allowlist.** Both commands enforce a domain allowlist inside
-  `BrowserSurface.act()` itself, not just at the call site — `flux discover`
-  defaults it to `--target`'s own host, `flux replay` to the saved
-  artifact's `app_target.base_url`; `--allow-domain` adds more (e.g. an SSO
-  provider). A blocked navigate never issues the request; a same-page click
-  that happens to land off-domain is caught on the way out too.
-- **Never persisted, never logged.** A step whose target field looks like a
-  credential (`password`, `ssn`, `token`, …) never gets its typed value
-  recorded — the artifact stores a `{{secret:name}}` reference instead
-  (`required_secrets` lists what's needed), resolved only from `--secret` /
-  `FLUX_SECRET_<NAME>` env vars at replay time, never from the artifact file.
-  The structured logger redacts the same way by default, for both the log
-  file and the console.
-- **Approval gate.** Any step recorded with a confirmed dialog (the mock
-  bank's "this cannot be undone") marks the whole artifact
-  `requires_approval`; unattended replay refuses to run it without
-  `--approve`.
-
-The loop, the recorder, the replay executor, and the safety layer are all
-covered against a scripted fake LLM and the live mock bank in
-`tests/integration/`, so the test suite never needs a real API key.
+- **Allowlist.** Both commands enforce a domain allowlist inside `BrowserSurface.act()` itself,
+  not just at the call site — `flux discover` defaults it to `--target`'s own host, `flux replay`
+  to the saved artifact's `app_target.base_url`; `--allow-domain` adds more (e.g. an SSO
+  provider). A blocked navigate never issues the request; a same-page click that happens to land
+  off-domain is caught on the way out too.
+- **Never persisted, never logged.** A step whose target field looks like a credential
+  (`password`, `ssn`, `token`, …) never gets its typed value recorded — the artifact stores a
+  `{{secret:name}}` reference instead (`required_secrets` lists what's needed), resolved only
+  from `--secret` / `FLUX_SECRET_<NAME>` env vars at replay time, never from the artifact file.
+  The structured logger redacts the same way by default, for both the log file and the console.
+- **Approval gate.** Any step recorded with a confirmed dialog (the mock bank's "this cannot be
+  undone") marks the whole artifact `requires_approval`; unattended replay refuses to run it
+  without `--approve`.
 
 ## Evidence
 
-Every discovery and replay run gets its own directory under
-`evidence/runs/<run_id>/`: a structured, redacted `log.jsonl` (one line per
-decision/action, "what did the agent do and why"), plus — on any stopping
-condition other than success — a screenshot and an accessibility-tree
-snapshot of the page at that moment (`flux.observability.evidence`). A
-curated set lives in `/evidence/` (Phase 9) as the submission's demonstration.
+Every discovery and replay run gets its own directory under `evidence/runs/<run_id>/` (gitignored
+scratch): a structured, redacted `log.jsonl` (one line per decision/action, "what did the agent
+do and why"), plus — on any failure — a screenshot and an accessibility-tree snapshot of the page
+at that moment (`flux.observability.evidence`). Four runs are promoted into the tracked
+[`/evidence/`](evidence/) directory as the submission's demonstration; see its own README for
+what each one shows.
 
 ## Tests
 
