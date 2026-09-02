@@ -14,7 +14,7 @@ progress and will be replaced with the full setup/demo instructions once the cor
 
 - [x] Phase 0 — repo scaffolding, CLI skeleton
 - [x] Phase 1 — `mock_bank/`, the target surface
-- [ ] Phase 2 — `Surface` abstraction + Playwright driver
+- [x] Phase 2 — `Surface` abstraction + Playwright driver
 - [ ] Phase 3 — LLM discovery loop
 - [ ] Phase 4 — artifact schema + recorder
 - [ ] Phase 5 — deterministic replay engine
