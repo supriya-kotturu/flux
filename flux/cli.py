@@ -49,6 +49,7 @@ def discover(
     from dotenv import load_dotenv
 
     load_dotenv()
+    load_dotenv(".env.local", override=True)
 
     from flux.agent.llm_client import AnthropicClient
     from flux.agent.loop import run_discovery
@@ -145,6 +146,7 @@ def replay(
     from dotenv import load_dotenv
 
     load_dotenv()
+    load_dotenv(".env.local", override=True)
 
     from flux.artifact import store
     from flux.escalation.detector import replay_should_escalate
