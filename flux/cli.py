@@ -32,11 +32,15 @@ def main() -> None:
     help="name=concrete_value used this run, e.g. member_id=10001 — templated into {{name}} when recorded",
 )
 @click.option("--vendor-product", default=None, help="Tag for the underlying app template (multi-tenant reuse story)")
+@click.option(
+    "--allow-domain", "extra_domains", multiple=True,
+    help="Additional domain the agent may navigate to, beyond --target's own host (e.g. an SSO provider). Repeatable.",
+)
 @click.option("--headless/--headed", default=False, help="Headed by default — watchable, and matches the handoff design.")
 @click.option("--max-steps", default=20, show_default=True)
 def discover(
     goal: str, target: str, name: str, params: tuple[str, ...],
-    vendor_product: str | None, headless: bool, max_steps: int,
+    vendor_product: str | None, extra_domains: tuple[str, ...], headless: bool, max_steps: int,
 ) -> None:
     """Run the LLM-driven discovery loop against a live surface and save the resulting artifact."""
     from pathlib import Path
@@ -51,12 +55,18 @@ def discover(
     from flux.artifact import store
     from flux.artifact.recorder import record
     from flux.observability.logger import RunLogger, new_run_id
+    from flux.safety.allowlist import Allowlist
     from flux.surface.browser import BrowserSurface
 
     input_params = dict(p.split("=", 1) for p in params)
 
+    # Safe by default: an agent operating against this target can't wander
+    # to an arbitrary domain (a hallucinated navigate, a link on the page
+    # itself) unless that domain is explicitly added.
+    allowlist = Allowlist.for_domain(target, *extra_domains)
+
     logger = RunLogger(new_run_id("discover"), evidence_root=Path("evidence"))
-    surface = BrowserSurface.launch(headless=headless)
+    surface = BrowserSurface.launch(headless=headless, allowlist=allowlist)
     try:
         run = run_discovery(
             goal=goal, target=target, surface=surface,
@@ -89,25 +99,56 @@ def discover(
 @click.option("--artifact", "artifact_name", required=True, help="Name of a saved artifact under artifacts/")
 @click.option("--param", "params", multiple=True, help="name=value input parameter, repeatable")
 @click.option(
+    "--secret", "secret_opts", multiple=True,
+    help=(
+        "name=value for a {{secret:name}} the artifact requires (e.g. password=...), repeatable. "
+        "Prefer FLUX_SECRET_<NAME> environment variables — never logged either way, but env vars "
+        "don't end up in your shell history."
+    ),
+)
+@click.option(
     "--approve", is_flag=True, default=False,
     help="Required if the artifact has any irreversible (dialog-confirmed) step — see requires_approval.",
 )
+@click.option(
+    "--allow-domain", "extra_domains", multiple=True,
+    help="Additional allowed domain beyond the artifact's own app_target host. Repeatable.",
+)
 @click.option("--headless/--headed", default=False)
-def replay(artifact_name: str, params: tuple[str, ...], approve: bool, headless: bool) -> None:
+def replay(
+    artifact_name: str, params: tuple[str, ...], secret_opts: tuple[str, ...],
+    approve: bool, extra_domains: tuple[str, ...], headless: bool,
+) -> None:
     """Deterministically replay a saved artifact — no LLM in the loop."""
+    import os
     from pathlib import Path
+
+    from dotenv import load_dotenv
+
+    load_dotenv()
 
     from flux.artifact import store
     from flux.observability.logger import RunLogger, new_run_id
     from flux.replay.executor import replay as run_replay
+    from flux.safety.allowlist import Allowlist
     from flux.surface.browser import BrowserSurface
 
     replay_params = dict(p.split("=", 1) for p in params)
+
+    # FLUX_SECRET_PASSWORD=... -> {"password": "..."}; explicit --secret wins.
+    env_secrets = {
+        key[len("FLUX_SECRET_"):].lower(): value
+        for key, value in os.environ.items()
+        if key.startswith("FLUX_SECRET_")
+    }
+    secrets = {**env_secrets, **dict(p.split("=", 1) for p in secret_opts)}
+
     artifact = store.load(artifact_name)
+    allowlist = Allowlist.for_domain(artifact.app_target.base_url, *extra_domains)
     logger = RunLogger(new_run_id("replay"), evidence_root=Path("evidence"))
-    surface = BrowserSurface.launch(headless=headless)
+    surface = BrowserSurface.launch(headless=headless, allowlist=allowlist)
     try:
-        result = run_replay(artifact, replay_params, surface, logger, approved=approve)
+        result = run_replay(artifact, replay_params, surface, logger, approved=approve, secrets=secrets)
     finally:
         surface.close()
 

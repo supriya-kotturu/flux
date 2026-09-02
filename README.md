@@ -18,7 +18,7 @@ progress and will be replaced with the full setup/demo instructions once the cor
 - [x] Phase 3 — LLM discovery loop
 - [x] Phase 4 — artifact schema + recorder
 - [x] Phase 5 — deterministic replay engine
-- [ ] Phase 6 — safety guardrails
+- [x] Phase 6 — safety guardrails
 - [ ] Phase 7 — observability/evidence
 - [ ] Phase 8 — escalation & handoff
 - [ ] Phase 9 — final README/REPORT + curated `/evidence/`
@@ -68,7 +68,7 @@ against a different member later).
 ## Replaying a saved artifact (no LLM, no API key needed)
 
 ```bash
-flux replay --artifact lookup_member_savings_balance --param member_id=10002
+flux replay --artifact lookup_member_savings_balance --param member_id=10002 --secret password=letmein
 ```
 
 Prints a structured result: `success` with typed outputs, a declared
@@ -78,10 +78,29 @@ expected, and what was observed. An artifact with any irreversible step
 (dialog-confirmed, e.g. opening a sub-account) refuses to run unattended
 unless you pass `--approve`.
 
-The loop, the recorder, and the replay executor (parameterized determinism,
-the business-outcome/failure split, the approval gate) are all covered
-against a scripted fake LLM and the live mock bank in `tests/integration/`,
-so the test suite never needs a real API key.
+## Safety
+
+- **Allowlist.** Both commands enforce a domain allowlist inside
+  `BrowserSurface.act()` itself, not just at the call site — `flux discover`
+  defaults it to `--target`'s own host, `flux replay` to the saved
+  artifact's `app_target.base_url`; `--allow-domain` adds more (e.g. an SSO
+  provider). A blocked navigate never issues the request; a same-page click
+  that happens to land off-domain is caught on the way out too.
+- **Never persisted, never logged.** A step whose target field looks like a
+  credential (`password`, `ssn`, `token`, …) never gets its typed value
+  recorded — the artifact stores a `{{secret:name}}` reference instead
+  (`required_secrets` lists what's needed), resolved only from `--secret` /
+  `FLUX_SECRET_<NAME>` env vars at replay time, never from the artifact file.
+  The structured logger redacts the same way by default, for both the log
+  file and the console.
+- **Approval gate.** Any step recorded with a confirmed dialog (the mock
+  bank's "this cannot be undone") marks the whole artifact
+  `requires_approval`; unattended replay refuses to run it without
+  `--approve`.
+
+The loop, the recorder, the replay executor, and the safety layer are all
+covered against a scripted fake LLM and the live mock bank in
+`tests/integration/`, so the test suite never needs a real API key.
 
 ## Tests
 

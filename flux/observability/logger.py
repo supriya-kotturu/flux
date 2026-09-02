@@ -5,10 +5,10 @@ Every discovery run and every replay run gets one JSONL file under
 "structured log of what the agent did and why" required by brief §3.5.
 
 Redaction is a seam, not an afterthought: every event passes through an
-injected ``redactor`` before it's serialized, so nothing sensitive ever
-reaches disk in the first place. Phase 6 (flux.safety.redaction) supplies
-the real redactor; until then this defaults to a no-op so earlier phases
-aren't blocked on safety work that hasn't been built yet.
+injected ``redactor`` before it's serialized *or* echoed to stdout, so
+nothing sensitive reaches disk or the console. Defaults to
+flux.safety.redaction.redact_log_event — pass a different one only to
+override it (e.g. a test asserting on the pre-redaction shape).
 """
 
 from __future__ import annotations
@@ -23,10 +23,6 @@ from typing import Any, Literal
 Controller = Literal["agent", "human", "system"]
 
 Redactor = Callable[[dict[str, Any]], dict[str, Any]]
-
-
-def _default_redactor(event: dict[str, Any]) -> dict[str, Any]:
-    return event
 
 
 def new_run_id(prefix: str) -> str:
@@ -54,7 +50,11 @@ class RunLogger:
         self.run_dir = evidence_root / "runs" / run_id
         self.run_dir.mkdir(parents=True, exist_ok=True)
         self.log_path = self.run_dir / "log.jsonl"
-        self._redactor = redactor or _default_redactor
+        if redactor is None:
+            from flux.safety.redaction import redact_log_event
+
+            redactor = redact_log_event
+        self._redactor = redactor
         self._echo = echo_to_stdout
 
     def event(self, event_type: str, controller: Controller = "system", **data: Any) -> None:
@@ -70,8 +70,11 @@ class RunLogger:
         with self.log_path.open("a", encoding="utf-8") as f:
             f.write(line + "\n")
         if self._echo:
-            print(f"[{record['ts']}] {controller:6s} {event_type:20s} "
-                  f"{ {k: v for k, v in data.items() if k not in ('ts', 'run_id', 'event_type', 'controller')} }")
+            # Built from the already-redacted `record`, not the original
+            # `data` kwargs — the console is as much a persistence surface
+            # as the file when a run is being watched or piped to a log.
+            shown = {k: v for k, v in record.items() if k not in ("ts", "run_id", "event_type", "controller")}
+            print(f"[{record['ts']}] {controller:6s} {event_type:20s} {shown}")
 
     def evidence_path(self, filename: str) -> Path:
         """Path for a richer artifact (screenshot, ax-tree dump) tied to this run."""

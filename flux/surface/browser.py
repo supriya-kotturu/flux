@@ -19,6 +19,7 @@ from playwright.sync_api import Error as PlaywrightError
 from playwright.sync_api import TimeoutError as PwTimeoutError
 from playwright.sync_api import sync_playwright
 
+from flux.safety.allowlist import Allowlist
 from flux.surface.accessibility import capture_ax_tree
 from flux.surface.base import (
     Action,
@@ -34,15 +35,19 @@ DEFAULT_CDP_PORT = 9222
 
 
 class BrowserSurface(Surface):
-    def __init__(self, page: Page) -> None:
+    def __init__(self, page: Page, allowlist: Allowlist | None = None) -> None:
         self._page = page
         self._armed_dialog_response: DialogResponse = "dismiss"
         self._last_dialog: DialogInfo | None = None
         self._owns: tuple[Any, Any, Any] | None = None
+        self._allowlist = allowlist
         page.on("dialog", self._on_dialog)
 
     @classmethod
-    def launch(cls, headless: bool = False, cdp_port: int | None = DEFAULT_CDP_PORT) -> "BrowserSurface":
+    def launch(
+        cls, headless: bool = False, cdp_port: int | None = DEFAULT_CDP_PORT,
+        allowlist: Allowlist | None = None,
+    ) -> "BrowserSurface":
         playwright = sync_playwright().start()
         launch_kwargs: dict[str, Any] = {"headless": headless}
         if cdp_port is not None:
@@ -50,7 +55,7 @@ class BrowserSurface(Surface):
         browser = playwright.chromium.launch(**launch_kwargs)
         context = browser.new_context()
         page = context.new_page()
-        surface = cls(page)
+        surface = cls(page, allowlist=allowlist)
         surface._owns = (playwright, browser, context)
         return surface
 
@@ -77,6 +82,10 @@ class BrowserSurface(Surface):
         )
 
     def act(self, action: Action) -> ActionResult:
+        denial = self._check_allowlist_before(action)
+        if denial is not None:
+            return ActionResult(ok=False, error=f"blocked_by_allowlist: {denial}")
+
         self._last_dialog = None
         self._armed_dialog_response = action.on_dialog or "dismiss"
         try:
@@ -87,8 +96,28 @@ class BrowserSurface(Surface):
             result = ActionResult(ok=False, error=str(exc))
         finally:
             self._armed_dialog_response = "dismiss"
+
+        if result.ok and self._allowlist is not None:
+            # Enforced on the *outcome*, not just the requested navigate: a
+            # click that happens to land off-domain (an external link on an
+            # otherwise-allowed page) is caught here even though the click
+            # itself wasn't a navigate action.
+            landed_denial = self._allowlist.check_navigate(self._page.url)
+            if landed_denial is not None:
+                result = ActionResult(ok=False, error=f"blocked_by_allowlist: landed outside allowlist — {landed_denial}")
+
         result.dialog_seen = self._last_dialog
         return result
+
+    def _check_allowlist_before(self, action: Action) -> str | None:
+        if self._allowlist is None:
+            return None
+        kind_denial = self._allowlist.check_action_kind(action.kind)
+        if kind_denial is not None:
+            return kind_denial
+        if action.kind == "navigate" and action.value:
+            return self._allowlist.check_navigate(action.value)
+        return None
 
     # --- internals ---
 

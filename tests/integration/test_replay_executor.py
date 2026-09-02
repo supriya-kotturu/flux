@@ -77,6 +77,28 @@ def _record_lookup_balance_artifact(page, mock_bank_server, tmp_path):
     )
 
 
+MOCK_LOGIN_SECRETS = {"password": "letmein"}
+
+
+def test_recorded_password_step_is_never_stored_literally(page, mock_bank_server, tmp_path):
+    artifact = _record_lookup_balance_artifact(page, mock_bank_server, tmp_path)
+
+    assert artifact.required_secrets == ["password"]
+    password_step = next(s for s in artifact.steps if s.locator and s.locator.candidates[0].name == "Password")
+    assert password_step.value_template == "{{secret:password}}"
+    assert "letmein" not in artifact.model_dump_json()
+
+
+def test_replay_refuses_to_run_without_the_required_secret(page, mock_bank_server, tmp_path):
+    artifact = _record_lookup_balance_artifact(page, mock_bank_server, tmp_path)
+
+    result = replay(artifact, params={"member_id": "10002"}, surface=BrowserSurface(page), logger=_logger(tmp_path))
+
+    assert result.kind == "failure"
+    assert result.category == "policy"
+    assert "password" in result.observed
+
+
 def test_replay_succeeds_with_a_different_input_than_it_was_recorded_with(page, mock_bank_server, tmp_path):
     artifact = _record_lookup_balance_artifact(page, mock_bank_server, tmp_path)
 
@@ -85,6 +107,7 @@ def test_replay_succeeds_with_a_different_input_than_it_was_recorded_with(page, 
         params={"member_id": "10002"},  # NOT the member this was recorded against
         surface=BrowserSurface(page),
         logger=_logger(tmp_path),
+        secrets=MOCK_LOGIN_SECRETS,
     )
 
     assert result.kind == "success"
@@ -99,6 +122,7 @@ def test_replay_detects_a_declared_business_outcome_not_a_crash(page, mock_bank_
         params={"member_id": "77777"},  # not seeded - no search results
         surface=BrowserSurface(page),
         logger=_logger(tmp_path),
+        secrets=MOCK_LOGIN_SECRETS,
     )
 
     assert result.kind == "business_outcome"
@@ -116,7 +140,10 @@ def test_replay_hard_failure_reports_step_expected_and_observed(page, mock_bank_
                 LocatorCandidate(strategy="text", text="Definitely Not On This Page", confidence=0.9)
             ]
 
-    result = replay(broken, params={"member_id": "10002"}, surface=BrowserSurface(page), logger=_logger(tmp_path))
+    result = replay(
+        broken, params={"member_id": "10002"}, surface=BrowserSurface(page), logger=_logger(tmp_path),
+        secrets=MOCK_LOGIN_SECRETS,
+    )
 
     assert result.kind == "failure"
     assert result.category == "action"
@@ -172,14 +199,18 @@ def test_replay_blocks_an_unapproved_irreversible_artifact(page, mock_bank_serve
     )
     assert artifact.requires_approval is True
 
-    blocked = replay(artifact, params={"member_id": "10003"}, surface=surface, logger=_logger(tmp_path, "replay-blocked"))
+    blocked = replay(
+        artifact, params={"member_id": "10003"}, surface=surface, logger=_logger(tmp_path, "replay-blocked"),
+        secrets=MOCK_LOGIN_SECRETS,  # supplied here too, so the only thing blocking this is the approval gate
+    )
     assert blocked.kind == "failure"
     assert blocked.category == "policy"
+    assert "approv" in blocked.expected.lower()
 
     # A fresh page/surface for the approved attempt - the blocked attempt above
     # never navigated anywhere, but starting clean keeps this test independent.
     approved_result = replay(
         artifact, params={"member_id": "10003"}, surface=surface, logger=_logger(tmp_path, "replay-approved"),
-        approved=True,
+        approved=True, secrets=MOCK_LOGIN_SECRETS,
     )
     assert approved_result.kind == "success"

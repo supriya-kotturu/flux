@@ -42,8 +42,24 @@ def replay(
     logger: RunLogger,
     *,
     approved: bool = False,
+    secrets: dict[str, str] | None = None,
 ) -> ReplayResult:
+    # Only the business params are logged. `secrets` never reaches this call —
+    # not because RunLogger would fail to redact it, but because a value that
+    # never gets passed to anything that logs is stronger than one that has
+    # to be caught and scrubbed.
     logger.event("replay_started", controller="system", artifact=artifact.name, params=params)
+    secrets = secrets or {}
+
+    missing_secrets = [s for s in artifact.required_secrets if s not in secrets]
+    if missing_secrets:
+        return ReplayFailure(
+            category="policy",
+            step_index=None,
+            expected=f"all required secrets: {sorted(artifact.required_secrets)}",
+            observed=f"missing: {missing_secrets}",
+            detail="replay was not attempted; supply via a secrets mapping (env vars, a secret manager), never --param",
+        )
 
     if artifact.requires_approval and not approved:
         logger.event("replay_blocked", controller="system", reason="requires_approval")
@@ -72,7 +88,9 @@ def replay(
             detail="replay was not attempted",
         )
 
-    entry_url = _substitute(artifact.app_target.entry_url, params)
+    substitutions = {**params, **{f"secret:{k}": v for k, v in secrets.items()}}
+
+    entry_url = _substitute(artifact.app_target.entry_url, substitutions)
     nav = surface.act(Action(kind="navigate", value=entry_url))
     if not nav.ok:
         return ReplayFailure(
@@ -87,7 +105,7 @@ def replay(
 
     outputs: dict[str, Any] = {}
     for step in artifact.steps:
-        result = _execute_step(step, params, surface, logger)
+        result = _execute_step(step, substitutions, surface, logger)
 
         if not result.ok:
             outcome = _check_known_outcomes(artifact, surface, step_index=step.index)
@@ -95,8 +113,9 @@ def replay(
                 logger.event("business_outcome", controller="system", name=outcome.name, step_index=step.index)
                 return outcome
             logger.event("replay_failed", controller="system", step_index=step.index, error=result.error)
+            blocked = (result.error or "").startswith("blocked_by_allowlist")
             return ReplayFailure(
-                category="action",
+                category="policy" if blocked else "action",
                 step_index=step.index,
                 expected=step.description or f"{step.kind} to succeed",
                 observed=result.error or "action did not succeed",

@@ -16,7 +16,12 @@ shape here is deliberate:
   failure distinction).
 - `requires_approval` is a real (if minimal) draft/approved gate: any
   irreversible step flips it on, and unattended replay refuses to run
-  until an operator clears it (flux.safety, Phase 6).
+  until an operator clears it.
+- A step whose target field looks like a credential (flux.safety.redaction)
+  never gets its discovered value recorded — `value_template` holds a
+  `{{secret:name}}` reference instead, listed in `required_secrets`, and
+  only resolves at replay time from a mapping supplied out of band (env
+  vars, a secret manager). Never from the artifact file, never logged.
 """
 
 from __future__ import annotations
@@ -108,4 +113,5 @@ class Artifact(BaseModel):
     checkpoint: Checkpoint
     provenance: Provenance
     requires_approval: bool = False
+    required_secrets: list[str] = Field(default_factory=list)  # names referenced as {{secret:name}} in steps
     created_at: datetime
