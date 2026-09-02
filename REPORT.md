@@ -189,8 +189,14 @@ replay can attempt.
   app password I invented, not a real secret, and rewriting history on a repo with several merged
   PRs for a take-home isn't worth the disruption — documented transparently in the Phase 6 PR and
   here instead.
-- **No stretch goal implemented.** Given the choice between depth on the core (which is where
-  this report's "real bugs found and fixed" examples came from) and one more feature, I chose
-  depth throughout. If I had more time, the agent-facing capability interface (a small FastAPI
-  surface listing artifacts as callable tools) is the one I'd build first — the Pydantic schemas
-  already convert to JSON-schema, so it's cheap on top of what exists.
+- **One stretch goal implemented: the agent-facing capability interface** (`flux serve` — see
+  `flux/api/server.py`). `GET /capabilities` lists saved artifacts with their typed
+  input/output schemas; `POST /capabilities/{name}/invoke` runs the same `replay()` executor
+  `flux replay` does and returns the same three-way result, now as a discriminated-union JSON
+  response instead of CLI text. Deliberately the cheapest stretch goal to build well: the
+  Pydantic artifact schema already *is* the typed contract this asks for, so the endpoint is a
+  thin HTTP wrapper, not a new subsystem — no new execution engine, no job queue, one browser
+  launched and closed per call, matching the "don't build infrastructure" guidance the rest of
+  the project follows. The other stretch goals (code generation, confidence scoring, assisted
+  fallback, canonicalization, multi-run stability) weren't attempted — the brief says pick 1-2,
+  and depth on the core over breadth across stretch goals was the better use of time.

@@ -76,6 +76,30 @@ replay, a business-outcome replay, and a hard-failure replay with screenshot + a
 evidence) generated the same deterministic way the test suite is — see
 [`evidence/README.md`](evidence/README.md).
 
+## Agent-facing capability interface (stretch goal)
+
+The same saved artifacts, exposed as callable capabilities over HTTP instead of the CLI —
+brief §8's stretch goal:
+
+```bash
+flux serve
+```
+
+```bash
+curl http://127.0.0.1:8000/capabilities
+# [{"name": "lookup_member_savings_balance", "input_schema": {"member_id": {...}}, ...}]
+
+curl -X POST http://127.0.0.1:8000/capabilities/lookup_member_savings_balance/invoke \
+  -H "Content-Type: application/json" \
+  -d '{"params": {"member_id": "10003"}, "secrets": {"password": "letmein"}}'
+# {"kind": "success", "outputs": {"savings_balance": "$15230.02"}}
+```
+
+Same executor `flux replay` uses, same three-way result — `success` / `business_outcome` /
+`failure` — now a discriminated-union JSON response instead of CLI text (interactive docs at
+`http://127.0.0.1:8000/docs`). Deliberately thin: no new execution engine, no job queue, one
+browser per call — see `REPORT.md` → Cuts for why this was the one stretch goal built.
+
 ## Escalation & handoff
 
 When replay hits a real failure (not a policy block — see Safety below),
