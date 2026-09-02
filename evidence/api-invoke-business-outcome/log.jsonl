@@ -1,0 +1,7 @@
+{"ts": "2026-09-02T05:19:25.662886+00:00", "run_id": "api-invoke-20260902-051923-295527", "event_type": "replay_started", "controller": "system", "artifact": "lookup_member_savings_balance", "params": {"member_id": "99999"}}
+{"ts": "2026-09-02T05:19:25.772638+00:00", "run_id": "api-invoke-20260902-051923-295527", "event_type": "step_ok", "controller": "system", "step_index": 0, "kind": "type"}
+{"ts": "2026-09-02T05:19:25.802714+00:00", "run_id": "api-invoke-20260902-051923-295527", "event_type": "step_ok", "controller": "system", "step_index": 1, "kind": "type"}
+{"ts": "2026-09-02T05:19:25.877352+00:00", "run_id": "api-invoke-20260902-051923-295527", "event_type": "step_ok", "controller": "system", "step_index": 2, "kind": "click"}
+{"ts": "2026-09-02T05:19:25.946879+00:00", "run_id": "api-invoke-20260902-051923-295527", "event_type": "step_ok", "controller": "system", "step_index": 3, "kind": "type"}
+{"ts": "2026-09-02T05:19:26.016964+00:00", "run_id": "api-invoke-20260902-051923-295527", "event_type": "step_ok", "controller": "system", "step_index": 4, "kind": "click"}
+{"ts": "2026-09-02T05:19:26.054090+00:00", "run_id": "api-invoke-20260902-051923-295527", "event_type": "business_outcome", "controller": "system", "name": "member_not_found", "step_index": 5}

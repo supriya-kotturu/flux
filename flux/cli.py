@@ -254,5 +254,15 @@ def operator_resume(request_id: str, note: str) -> None:
     click.echo(f"{request.id} marked resumed — the waiting `flux replay --escalate-on-failure` process will pick this up.")
 
 
+@main.command()
+@click.option("--host", default="127.0.0.1", show_default=True)
+@click.option("--port", default=8000, show_default=True)
+def serve(host: str, port: int) -> None:
+    """Run the agent-facing capability interface: saved artifacts as callable HTTP capabilities."""
+    import uvicorn
+
+    uvicorn.run("flux.api.server:app", host=host, port=port)
+
+
 if __name__ == "__main__":
     main()

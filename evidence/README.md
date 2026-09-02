@@ -48,3 +48,25 @@ python -m flask --app mock_bank.app run --port 5055 &
 flux replay --artifact lookup_member_savings_balance --param member_id=10002 --secret password=letmein
 flux replay --artifact lookup_member_savings_balance --param member_id=77777 --secret password=letmein
 ```
+
+## Agent-facing capability interface (stretch goal)
+
+`api-invoke-success/` and `api-invoke-business-outcome/` are the same capability invoked over
+HTTP instead of the CLI — `flux serve`, brief §8's stretch goal
+(`flux/api/server.py`). Same executor, same artifact, same three-way result — now JSON.
+
+```bash
+flux serve &
+curl http://127.0.0.1:8000/capabilities
+curl -X POST http://127.0.0.1:8000/capabilities/lookup_member_savings_balance/invoke \
+  -H "Content-Type: application/json" \
+  -d '{"params": {"member_id": "10003"}, "secrets": {"password": "letmein"}}'
+# {"kind":"success","outputs":{"savings_balance":"$15230.02"}}
+
+curl -X POST http://127.0.0.1:8000/capabilities/lookup_member_savings_balance/invoke \
+  -H "Content-Type: application/json" \
+  -d '{"params": {"member_id": "99999"}, "secrets": {"password": "letmein"}}'
+# {"kind":"business_outcome","name":"member_not_found","description":"No member matches the given ID.","step_index":5}
+```
+
+Auto-generated interactive docs at `http://127.0.0.1:8000/docs` once `flux serve` is running.
