@@ -27,7 +27,9 @@ from flux.artifact.schema import (
     Provenance,
     Step,
 )
-from flux.surface.base import Locator, LocatorCandidate
+from flux.safety import risk
+from flux.safety.redaction import field_looks_sensitive, secret_ref_name
+from flux.surface.base import Action, Locator, LocatorCandidate
 
 
 def record(
@@ -58,6 +60,7 @@ def record(
     )
     steps: list[Step] = []
     output_schema: dict[str, ParamSpec] = {}
+    required_secrets: list[str] = []
     last_locator_step: Step | None = None
 
     for discovery_step in run.steps:
@@ -67,7 +70,17 @@ def record(
         action = discovery_step.action
         result = discovery_step.result
         locator = _build_step_locator(action.locator, result, input_params)
-        value_template = _templatize(action.value, input_params) if action.value else None
+
+        secret_name = _sensitive_secret_name(action)
+        if secret_name is not None:
+            # Never templatize a credential's discovered value against
+            # input_params, and never write it literally either — a
+            # {{secret:name}} reference is the only form that reaches disk.
+            value_template = "{{secret:" + secret_name + "}}"
+            if secret_name not in required_secrets:
+                required_secrets.append(secret_name)
+        else:
+            value_template = _templatize(action.value, input_params) if action.value else None
 
         output_name = None
         if discovery_step.tool_name == "extract":
@@ -84,7 +97,7 @@ def record(
             value_template=value_template,
             output_name=output_name,
             description=discovery_step.tool_input.get("reasoning") or _auto_description(action),
-            risk_level="irreversible" if action.on_dialog == "accept" else "safe",
+            risk_level=risk.classify(action),
             on_dialog=action.on_dialog,
         )
         steps.append(step)
@@ -108,8 +121,18 @@ def record(
         checkpoint=resolved_checkpoint,
         provenance=Provenance(discovery_run_id=run.run_id, recorded_at=now),
         requires_approval=any(s.risk_level == "irreversible" for s in steps),
+        required_secrets=required_secrets,
         created_at=now,
     )
+
+
+def _sensitive_secret_name(action: Action) -> str | None:
+    if action.kind != "type" or not action.locator or not action.locator.candidates:
+        return None
+    label = action.locator.candidates[0].name
+    if not field_looks_sensitive(label):
+        return None
+    return secret_ref_name(label)
 
 
 def _templatize(value: str, input_params: dict[str, str]) -> str:
