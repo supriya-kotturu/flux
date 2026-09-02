@@ -35,7 +35,9 @@ def record(
     *,
     name: str,
     description: str,
-    app_target: AppTarget,
+    base_url: str,
+    vendor_product: str | None = None,
+    tenant_id: str | None = None,
     input_params: dict[str, str] | None = None,
     input_schema: dict[str, ParamSpec] | None = None,
     known_outcomes: list[NamedOutcome] | None = None,
@@ -48,6 +50,12 @@ def record(
         )
 
     input_params = input_params or {}
+    app_target = AppTarget(
+        base_url=base_url,
+        entry_url=_templatize(run.target, input_params),
+        vendor_product=vendor_product,
+        tenant_id=tenant_id,
+    )
     steps: list[Step] = []
     output_schema: dict[str, ParamSpec] = {}
     last_locator_step: Step | None = None
@@ -77,6 +85,7 @@ def record(
             output_name=output_name,
             description=discovery_step.tool_input.get("reasoning") or _auto_description(action),
             risk_level="irreversible" if action.on_dialog == "accept" else "safe",
+            on_dialog=action.on_dialog,
         )
         steps.append(step)
         if locator is not None:

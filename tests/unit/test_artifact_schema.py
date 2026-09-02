@@ -20,7 +20,11 @@ def _minimal_artifact(name: str = "lookup_member_balance") -> Artifact:
         id=name,
         name=name,
         description="Look up a member and read their savings balance.",
-        app_target=AppTarget(base_url="http://127.0.0.1:5055", vendor_product="meridian-core-banking"),
+        app_target=AppTarget(
+            base_url="http://127.0.0.1:5055",
+            entry_url="http://127.0.0.1:5055/login",
+            vendor_product="meridian-core-banking",
+        ),
         input_schema={"member_id": ParamSpec(type="string", description="The member ID to look up.")},
         output_schema={"savings_balance": ParamSpec(type="string")},
         steps=[

@@ -25,6 +25,12 @@ you click something you expect to trigger one, say so via `expect_dialog`. \
 If you don't, the dialog will be dismissed by default and your action will \
 not have completed — check the next observation to confirm before assuming \
 it worked.
+- Before calling `goal_complete`, if your last step was a click that should have \
+finished the flow, `extract` some stable text that is only present on the \
+success state you landed on (not just the button you clicked — that control is \
+gone once you've navigated past it). This becomes the checkpoint a replay \
+later verifies against, so it has to describe where you ended up, not what \
+you last clicked.
 - When you believe the goal is met, call `goal_complete` with every value \
 you extracted and a `checkpoint` description precise enough that someone \
 replaying this later (without you) could verify they reached the same state.

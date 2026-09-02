@@ -1,0 +1,355 @@
+{
+  "schema_version": 1,
+  "id": "lookup_member_savings_balance",
+  "version": 1,
+  "name": "lookup_member_savings_balance",
+  "description": "Look up a member by ID and read their savings balance.",
+  "app_target": {
+    "base_url": "http://127.0.0.1:5055",
+    "entry_url": "http://127.0.0.1:5055/login",
+    "vendor_product": "meridian-core-banking",
+    "tenant_id": null
+  },
+  "input_schema": {
+    "member_id": {
+      "type": "string",
+      "description": "",
+      "required": true
+    }
+  },
+  "output_schema": {
+    "savings_balance": {
+      "type": "string",
+      "description": "extracted at step 6",
+      "required": true
+    }
+  },
+  "steps": [
+    {
+      "index": 0,
+      "kind": "type",
+      "locator": {
+        "candidates": [
+          {
+            "strategy": "label",
+            "role": null,
+            "name": "Username",
+            "text": null,
+            "css": null,
+            "x": null,
+            "y": null,
+            "exact": false,
+            "confidence": 0.85
+          },
+          {
+            "strategy": "structural_path",
+            "role": null,
+            "name": null,
+            "text": null,
+            "css": "#username",
+            "x": null,
+            "y": null,
+            "exact": false,
+            "confidence": 0.25
+          }
+        ]
+      },
+      "value_template": "operator",
+      "output_name": null,
+      "description": "log in",
+      "risk_level": "safe",
+      "on_dialog": null
+    },
+    {
+      "index": 1,
+      "kind": "type",
+      "locator": {
+        "candidates": [
+          {
+            "strategy": "label",
+            "role": null,
+            "name": "Password",
+            "text": null,
+            "css": null,
+            "x": null,
+            "y": null,
+            "exact": false,
+            "confidence": 0.85
+          },
+          {
+            "strategy": "structural_path",
+            "role": null,
+            "name": null,
+            "text": null,
+            "css": "#password",
+            "x": null,
+            "y": null,
+            "exact": false,
+            "confidence": 0.25
+          }
+        ]
+      },
+      "value_template": "letmein",
+      "output_name": null,
+      "description": "log in",
+      "risk_level": "safe",
+      "on_dialog": null
+    },
+    {
+      "index": 2,
+      "kind": "click",
+      "locator": {
+        "candidates": [
+          {
+            "strategy": "role_name",
+            "role": "button",
+            "name": "Sign In",
+            "text": null,
+            "css": null,
+            "x": null,
+            "y": null,
+            "exact": false,
+            "confidence": 0.9
+          },
+          {
+            "strategy": "text",
+            "role": null,
+            "name": null,
+            "text": "Sign In",
+            "css": null,
+            "x": null,
+            "y": null,
+            "exact": false,
+            "confidence": 0.5
+          },
+          {
+            "strategy": "structural_path",
+            "role": null,
+            "name": null,
+            "text": null,
+            "css": "td:nth-of-type(1) > form:nth-of-type(1) > p:nth-of-type(1) > button:nth-of-type(1)",
+            "x": null,
+            "y": null,
+            "exact": false,
+            "confidence": 0.25
+          }
+        ]
+      },
+      "value_template": null,
+      "output_name": null,
+      "description": "submit login",
+      "risk_level": "safe",
+      "on_dialog": null
+    },
+    {
+      "index": 3,
+      "kind": "type",
+      "locator": {
+        "candidates": [
+          {
+            "strategy": "label",
+            "role": null,
+            "name": "Member ID or last name",
+            "text": null,
+            "css": null,
+            "x": null,
+            "y": null,
+            "exact": false,
+            "confidence": 0.85
+          },
+          {
+            "strategy": "structural_path",
+            "role": null,
+            "name": null,
+            "text": null,
+            "css": "#query",
+            "x": null,
+            "y": null,
+            "exact": false,
+            "confidence": 0.25
+          }
+        ]
+      },
+      "value_template": "{{member_id}}",
+      "output_name": null,
+      "description": "search for the target member by ID",
+      "risk_level": "safe",
+      "on_dialog": null
+    },
+    {
+      "index": 4,
+      "kind": "click",
+      "locator": {
+        "candidates": [
+          {
+            "strategy": "role_name",
+            "role": "button",
+            "name": "Search",
+            "text": null,
+            "css": null,
+            "x": null,
+            "y": null,
+            "exact": false,
+            "confidence": 0.9
+          },
+          {
+            "strategy": "text",
+            "role": null,
+            "name": null,
+            "text": "Search",
+            "css": null,
+            "x": null,
+            "y": null,
+            "exact": false,
+            "confidence": 0.5
+          },
+          {
+            "strategy": "structural_path",
+            "role": null,
+            "name": null,
+            "text": null,
+            "css": "tr:nth-of-type(3) > td:nth-of-type(1) > form:nth-of-type(1) > button:nth-of-type(1)",
+            "x": null,
+            "y": null,
+            "exact": false,
+            "confidence": 0.25
+          }
+        ]
+      },
+      "value_template": null,
+      "output_name": null,
+      "description": "run the search",
+      "risk_level": "safe",
+      "on_dialog": null
+    },
+    {
+      "index": 5,
+      "kind": "click",
+      "locator": {
+        "candidates": [
+          {
+            "strategy": "role_name",
+            "role": "link",
+            "name": "Open Record",
+            "text": null,
+            "css": null,
+            "x": null,
+            "y": null,
+            "exact": false,
+            "confidence": 0.9
+          },
+          {
+            "strategy": "text",
+            "role": null,
+            "name": null,
+            "text": "Open Record",
+            "css": null,
+            "x": null,
+            "y": null,
+            "exact": false,
+            "confidence": 0.5
+          },
+          {
+            "strategy": "structural_path",
+            "role": null,
+            "name": null,
+            "text": null,
+            "css": "tbody:nth-of-type(1) > tr:nth-of-type(2) > td:nth-of-type(5) > a:nth-of-type(1)",
+            "x": null,
+            "y": null,
+            "exact": false,
+            "confidence": 0.25
+          }
+        ]
+      },
+      "value_template": null,
+      "output_name": null,
+      "description": "open the matched member record",
+      "risk_level": "safe",
+      "on_dialog": null
+    },
+    {
+      "index": 6,
+      "kind": "extract",
+      "locator": {
+        "candidates": [
+          {
+            "strategy": "table_row_value",
+            "role": null,
+            "name": "Savings Balance",
+            "text": null,
+            "css": null,
+            "x": null,
+            "y": null,
+            "exact": false,
+            "confidence": 0.55
+          },
+          {
+            "strategy": "text",
+            "role": null,
+            "name": null,
+            "text": "$4210.55",
+            "css": null,
+            "x": null,
+            "y": null,
+            "exact": false,
+            "confidence": 0.5
+          },
+          {
+            "strategy": "structural_path",
+            "role": null,
+            "name": null,
+            "text": null,
+            "css": "table:nth-of-type(1) > tbody:nth-of-type(1) > tr:nth-of-type(5) > td:nth-of-type(2)",
+            "x": null,
+            "y": null,
+            "exact": false,
+            "confidence": 0.25
+          }
+        ]
+      },
+      "value_template": null,
+      "output_name": "savings_balance",
+      "description": "read via the row label so this works for any member",
+      "risk_level": "safe",
+      "on_dialog": null
+    }
+  ],
+  "known_outcomes": [
+    {
+      "name": "member_not_found",
+      "description": "No member matches the given ID.",
+      "detect": {
+        "strategy": "text",
+        "role": null,
+        "name": null,
+        "text": "No members matched",
+        "css": null,
+        "x": null,
+        "y": null,
+        "exact": false,
+        "confidence": 0.9
+      }
+    }
+  ],
+  "checkpoint": {
+    "description": "member detail page shows savings balance",
+    "detect": {
+      "strategy": "table_row_value",
+      "role": null,
+      "name": "Savings Balance",
+      "text": null,
+      "css": null,
+      "x": null,
+      "y": null,
+      "exact": false,
+      "confidence": 0.55
+    }
+  },
+  "provenance": {
+    "discovery_run_id": "cli-smoke-discover-20260902-010003-e52dde",
+    "recorded_at": "2026-09-02T01:00:04.723393Z"
+  },
+  "requires_approval": false,
+  "created_at": "2026-09-02T01:00:04.723393Z"
+}

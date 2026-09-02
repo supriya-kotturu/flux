@@ -6,6 +6,16 @@ own accessible-name-aware locators (`get_by_role`, `get_by_label`,
 technology would use, which is exactly why it survives table-based legacy
 markup with no test IDs: role and accessible name are computed from
 semantics (labels, button text, ARIA), not from CSS classes or DOM shape.
+
+`table_row_value` is the one strategy built specifically for the legacy
+two-column label/value table the brief calls out as the norm in this
+environment (e.g. "Savings Balance" | "$4,210.55"): it locates a `<tr>`
+containing the given label text and targets that row's last cell. Unlike
+matching the value's own text, this doesn't need to already know the
+value — which matters because a *discovered* value (a balance, a status)
+is exactly the kind of thing a recorded locator can't hardcode without
+breaking replay for every other input.
+
 `structural_path` (a CSS selector) and `coordinates` are explicit
 fallbacks for when nothing about a control is nameable — expected to rank
 low and to be a signal, when they win, that the target needs a better
@@ -52,6 +62,16 @@ def _build(page: Page, candidate: LocatorCandidate) -> PwLocator | None:
         return page.get_by_role(candidate.role)
     if candidate.strategy == "label" and candidate.name:
         return page.get_by_label(candidate.name, exact=candidate.exact)
+    if candidate.strategy == "table_row_value" and candidate.name:
+        # Deliberately not `tr:has-text(label) >> td >> last`: on a page whose
+        # own chrome is nested tables (see mock_bank/templates/base.html —
+        # exactly the "deeply nested tables" legacy reality brief §1 calls
+        # out), an ancestor <tr> can *also* contain the label text anywhere
+        # in its subtree and out-rank the real row. Anchoring on the label
+        # cell's own exact accessible name, then taking its immediate <td>
+        # sibling, stays scoped to the one row that actually has it.
+        label_cell = page.get_by_role("cell", name=candidate.name, exact=True)
+        return label_cell.locator("xpath=following-sibling::td[1]")
     if candidate.strategy == "text" and candidate.text:
         return page.get_by_text(candidate.text, exact=candidate.exact)
     if candidate.strategy == "structural_path" and candidate.css:
@@ -68,6 +88,10 @@ def role_name(role: str, name: str, *, exact: bool = False, confidence: float = 
 
 def label(name: str, *, exact: bool = False, confidence: float = 0.85) -> LocatorCandidate:
     return LocatorCandidate(strategy="label", name=name, exact=exact, confidence=confidence)
+
+
+def table_row_value(row_label: str, *, confidence: float = 0.55) -> LocatorCandidate:
+    return LocatorCandidate(strategy="table_row_value", name=row_label, confidence=confidence)
 
 
 def text(value: str, *, exact: bool = False, confidence: float = 0.6) -> LocatorCandidate:
