@@ -26,12 +26,21 @@ def main() -> None:
     help="Natural language goal, e.g. 'look up member 12345 and read their savings balance'",
 )
 @click.option("--target", required=True, help="Entry point URL for the target application")
-@click.option("--name", required=True, help="Name to save the resulting artifact under (artifact saving lands in Phase 4)")
+@click.option("--name", required=True, help="Name to save the resulting artifact under")
+@click.option(
+    "--param", "params", multiple=True,
+    help="name=concrete_value used this run, e.g. member_id=10001 — templated into {{name}} when recorded",
+)
+@click.option("--vendor-product", default=None, help="Tag for the underlying app template (multi-tenant reuse story)")
 @click.option("--headless/--headed", default=False, help="Headed by default — watchable, and matches the handoff design.")
 @click.option("--max-steps", default=20, show_default=True)
-def discover(goal: str, target: str, name: str, headless: bool, max_steps: int) -> None:
-    """Run the LLM-driven discovery loop against a live surface."""
+def discover(
+    goal: str, target: str, name: str, params: tuple[str, ...],
+    vendor_product: str | None, headless: bool, max_steps: int,
+) -> None:
+    """Run the LLM-driven discovery loop against a live surface and save the resulting artifact."""
     from pathlib import Path
+    from urllib.parse import urlsplit
 
     from dotenv import load_dotenv
 
@@ -39,8 +48,13 @@ def discover(goal: str, target: str, name: str, headless: bool, max_steps: int) 
 
     from flux.agent.llm_client import AnthropicClient
     from flux.agent.loop import run_discovery
+    from flux.artifact import store
+    from flux.artifact.recorder import record
+    from flux.artifact.schema import AppTarget
     from flux.observability.logger import RunLogger, new_run_id
     from flux.surface.browser import BrowserSurface
+
+    input_params = dict(p.split("=", 1) for p in params)
 
     logger = RunLogger(new_run_id("discover"), evidence_root=Path("evidence"))
     surface = BrowserSurface.launch(headless=headless)
@@ -57,10 +71,19 @@ def discover(goal: str, target: str, name: str, headless: bool, max_steps: int) 
         click.echo(f"outputs={run.outputs}")
     if run.give_up_reason:
         click.echo(f"give_up_reason={run.give_up_reason}")
-    click.echo(f"(artifact recording lands in Phase 4 — artifacts/{name}.json was not written)")
     click.echo(f"evidence: {logger.run_dir}")
+
     if not run.success:
         raise SystemExit(1)
+
+    origin = urlsplit(target)
+    artifact = record(
+        run, name=name, description=goal,
+        app_target=AppTarget(base_url=f"{origin.scheme}://{origin.netloc}", vendor_product=vendor_product),
+        input_params=input_params,
+    )
+    path = store.save(artifact)
+    click.echo(f"artifact saved: {path} (requires_approval={artifact.requires_approval})")
 
 
 @main.command()

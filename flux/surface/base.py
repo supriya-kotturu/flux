@@ -101,6 +101,11 @@ class Action(BaseModel):
 class ActionResult(BaseModel):
     ok: bool
     resolved_via: LocatorCandidate | None = None
+    # Extra ways the *same* resolved element could be found, captured live at
+    # execution time (a post-hoc pass can't do this — the page has already
+    # moved on). The artifact recorder (Phase 4) folds these in alongside
+    # `resolved_via` to build each step's ranked fallback candidate list.
+    alternate_candidates: list[LocatorCandidate] = Field(default_factory=list)
     data: dict[str, Any] | None = None
     error: str | None = None
     dialog_seen: DialogInfo | None = None
