@@ -19,7 +19,7 @@ progress and will be replaced with the full setup/demo instructions once the cor
 - [x] Phase 4 — artifact schema + recorder
 - [x] Phase 5 — deterministic replay engine
 - [x] Phase 6 — safety guardrails
-- [ ] Phase 7 — observability/evidence
+- [x] Phase 7 — observability/evidence
 - [ ] Phase 8 — escalation & handoff
 - [ ] Phase 9 — final README/REPORT + curated `/evidence/`
 
@@ -101,6 +101,15 @@ unless you pass `--approve`.
 The loop, the recorder, the replay executor, and the safety layer are all
 covered against a scripted fake LLM and the live mock bank in
 `tests/integration/`, so the test suite never needs a real API key.
+
+## Evidence
+
+Every discovery and replay run gets its own directory under
+`evidence/runs/<run_id>/`: a structured, redacted `log.jsonl` (one line per
+decision/action, "what did the agent do and why"), plus — on any stopping
+condition other than success — a screenshot and an accessibility-tree
+snapshot of the page at that moment (`flux.observability.evidence`). A
+curated set lives in `/evidence/` (Phase 9) as the submission's demonstration.
 
 ## Tests
 

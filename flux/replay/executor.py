@@ -26,6 +26,7 @@ import time
 from typing import Any
 
 from flux.artifact.schema import Artifact, Step
+from flux.observability.evidence import capture_failure_evidence
 from flux.observability.logger import RunLogger
 from flux.replay.checkpoint import detect
 from flux.replay.errors import ReplayBusinessOutcome, ReplayFailure, ReplayResult, ReplaySuccess
@@ -93,6 +94,7 @@ def replay(
     entry_url = _substitute(artifact.app_target.entry_url, substitutions)
     nav = surface.act(Action(kind="navigate", value=entry_url))
     if not nav.ok:
+        capture_failure_evidence(surface, logger, tag="failure-entry-navigate")
         return ReplayFailure(
             category="action", step_index=None,
             expected=f"load {entry_url}", observed=nav.error or "navigation failed",
@@ -113,6 +115,7 @@ def replay(
                 logger.event("business_outcome", controller="system", name=outcome.name, step_index=step.index)
                 return outcome
             logger.event("replay_failed", controller="system", step_index=step.index, error=result.error)
+            capture_failure_evidence(surface, logger, tag=f"failure-step{step.index}")
             blocked = (result.error or "").startswith("blocked_by_allowlist")
             return ReplayFailure(
                 category="policy" if blocked else "action",
@@ -133,6 +136,7 @@ def replay(
             logger.event("business_outcome", controller="system", name=outcome.name, step_index=None)
             return outcome
         logger.event("checkpoint_failed", controller="system")
+        capture_failure_evidence(surface, logger, tag="failure-checkpoint")
         return ReplayFailure(
             category="checkpoint",
             step_index=None,

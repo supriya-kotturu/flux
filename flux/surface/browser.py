@@ -63,6 +63,9 @@ class BrowserSurface(Surface):
     def page(self) -> Page:
         return self._page
 
+    def screenshot(self) -> bytes:
+        return self._page.screenshot(type="png")
+
     def close(self) -> None:
         if self._owns is not None:
             playwright, browser, context = self._owns
